@@ -44,9 +44,12 @@ suite('Indent Spectra Test Suite', () => {
     test('Should process mixed indentation without crashing', async () => {
         // 1 tab followed by 4 spaces (common error scenario)
         const content = 'root\n\tlevel 1\n\t    mixed level';
+
+        // Use 'javascript' instead of 'plaintext' because 'plaintext' is
+        // in ignoredLanguages by default, which skips the logic we want to test.
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'plaintext'
+            language: 'javascript'
         });
         const editor = await vscode.window.showTextDocument(doc);
 

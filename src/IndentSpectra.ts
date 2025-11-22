@@ -15,7 +15,8 @@ export class IndentSpectra implements vscode.Disposable {
     private lightIndicatorWidth = 1;
 
     // Runtime State
-    private timeout: NodeJS.Timeout | null = null;
+    // Use ReturnType<typeof setTimeout> for compatibility with both Node and Browser environments
+    private timeout: ReturnType<typeof setTimeout> | null = null;
 
     // Reusable RegEx for performance (stateful)
     private readonly indentRegex = /^[\t ]+/gm;
@@ -32,8 +33,8 @@ export class IndentSpectra implements vscode.Disposable {
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        // Primitives
-        this.updateDelay = config.get<number>('updateDelay', 100);
+        // Primitives (Input Validation: Clamp delay to minimum 10ms)
+        this.updateDelay = Math.max(10, config.get<number>('updateDelay', 100));
         this.indicatorStyle = config.get<'classic' | 'light'>('indicatorStyle', 'classic');
         this.lightIndicatorWidth = config.get<number>('lightIndicatorWidth', 1);
 
@@ -108,7 +109,7 @@ export class IndentSpectra implements vscode.Disposable {
         if (this.timeout) {
             clearTimeout(this.timeout);
         }
-        // Debounce update using Node.js timeout
+        // Debounce update
         this.timeout = setTimeout(() => this.update(), this.updateDelay);
     }
 
@@ -164,16 +165,16 @@ export class IndentSpectra implements vscode.Disposable {
                 doc
             );
 
-            // Detect Indentation Errors (not divisible by tabSize)
+            // Logic Update: Always distribute blocks to rainbow colors (Underlay)
+            for (let i = 0; i < blockRanges.length; i++) {
+                const colorIndex = i % this.decorators.length;
+                ranges[colorIndex].push(blockRanges[i]);
+            }
+
+            // Detect Indentation Errors (Overlay)
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
                 const endPos = doc.positionAt(matchIndex + matchText.length);
                 errorRanges.push(new vscode.Range(startPos, endPos));
-            } else {
-                // Distribute blocks to colors
-                for (let i = 0; i < blockRanges.length; i++) {
-                    const colorIndex = i % this.decorators.length;
-                    ranges[colorIndex].push(blockRanges[i]);
-                }
             }
         }
 
@@ -188,15 +189,24 @@ export class IndentSpectra implements vscode.Disposable {
      */
 
     private getTabSize(editor: vscode.TextEditor): number {
+        // 1. Try Editor specific tab size
         const tabSizeRaw = editor.options.tabSize;
-        let tabSize = 4;
         if (typeof tabSizeRaw === 'number') {
-            tabSize = tabSizeRaw;
-        } else if (typeof tabSizeRaw === 'string') {
-            const parsed = parseInt(tabSizeRaw, 10);
-            if (!isNaN(parsed)) tabSize = parsed;
+            return tabSizeRaw > 0 ? tabSizeRaw : 4;
         }
-        return tabSize > 0 ? tabSize : 4;
+        if (typeof tabSizeRaw === 'string') {
+            const parsed = parseInt(tabSizeRaw, 10);
+            if (!isNaN(parsed)) return parsed > 0 ? parsed : 4;
+        }
+
+        // 2. Try Global User/Workspace configuration
+        const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
+        if (globalTabSize && globalTabSize > 0) {
+            return globalTabSize;
+        }
+
+        // 3. Fallback
+        return 4;
     }
 
     private findIgnoredLines(text: string, doc: vscode.TextDocument): Set<number> {
