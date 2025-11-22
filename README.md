@@ -63,6 +63,8 @@ Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName
 
 ## Comparison with Indent Rainbow
 
+Start with *Indent Spectra* install file = 71 KB, *Indent Rainbow* = 8.45 MB. The units are not typos.
+
 ### 1. 🚀 Performance & Efficiency (The Engine)
 The most significant change is under the hood. The rendering engine was rewritten from scratch to handle large files without slowing down the editor.
 
