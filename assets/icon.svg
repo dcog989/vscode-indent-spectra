@@ -1,0 +1,25 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background: VS Code Dark Gray style -->
+    <rect width="256" height="256" rx="50" fill="#444444"/>
+    
+    <!-- Level 1: Gold (Warm) -->
+    <!-- Represents the root indentation -->
+    <rect x="32" y="48" width="192" height="24" rx="12" fill="#FFD700"/>
+    
+    <!-- Level 2: Royal Blue (Cool) -->
+    <!-- First indent step -->
+    <rect x="72" y="92" width="152" height="24" rx="12" fill="#4169E1"/>
+    
+    <!-- Level 3: Hot Pink (Warm) -->
+    <!-- Second indent step -->
+    <rect x="112" y="136" width="112" height="24" rx="12" fill="#FF69B4"/>
+    
+    <!-- Level 4: Cyan (Cool) -->
+    <!-- Deepest indent step -->
+    <rect x="152" y="180" width="72" height="24" rx="12" fill="#00FFFF"/>
+
+    <!-- Subtle vertical guide line opacity for context -->
+    <rect x="32" y="80" width="2" height="124" fill="white" fill-opacity="0.1"/>
+    <rect x="72" y="124" width="2" height="80" fill="white" fill-opacity="0.1"/>
+    <rect x="112" y="168" width="2" height="36" fill="white" fill-opacity="0.1"/>
+</svg>
