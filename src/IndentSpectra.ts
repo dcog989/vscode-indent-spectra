@@ -1,5 +1,51 @@
 import * as vscode from 'vscode';
 
+// --- Palette Definitions ---
+
+// 1. Universal (High Contrast Interleaved)
+// Gold -> Royal Blue -> Hot Pink -> Cyan
+const PALETTE_UNIVERSAL = [
+    "rgba(255, 215, 0, 0.08)",   // Gold (Warm)
+    "rgba(65, 105, 225, 0.08)",  // Royal Blue (Cool, Dark)
+    "rgba(255, 105, 180, 0.08)", // Hot Pink (Warm, Distinct)
+    "rgba(0, 255, 255, 0.08)"    // Cyan (Cool, Light)
+];
+
+// 2. Protanopia & Deuteranopia Safe (Red/Green Blindness)
+// Relies on Blue vs Yellow. Avoids Red/Green.
+const PALETTE_PROTAN_DEUTERAN = [
+    "rgba(240, 228, 66, 0.2)",   // Yellow
+    "rgba(86, 180, 233, 0.2)",   // Sky Blue
+    "rgba(230, 159, 0, 0.2)",    // Orange
+    "rgba(0, 114, 178, 0.2)"     // Dark Blue
+];
+
+// 3. Tritanopia Safe (Blue Blindness)
+// Relies on Red/Pink vs Teal/Cyan.
+const PALETTE_TRITAN = [
+    "rgba(204, 121, 167, 0.2)",  // Reddish Purple
+    "rgba(0, 158, 115, 0.2)",    // Bluish Green
+    "rgba(213, 94, 0, 0.2)",     // Vermilion
+    "rgba(240, 240, 240, 0.2)"   // Light Grey (Neutral anchor)
+];
+
+// 4. Cool (Calm)
+const PALETTE_COOL = [
+    "rgba(64, 224, 208, 0.1)",  // Turquoise
+    "rgba(100, 149, 237, 0.1)", // Cornflower Blue
+    "rgba(123, 104, 238, 0.1)", // Medium Slate Blue
+    "rgba(176, 196, 222, 0.1)"  // Light Steel Blue
+];
+
+// 5. Warm (Energetic)
+const PALETTE_WARM = [
+    "rgba(255, 160, 122, 0.1)", // Light Salmon
+    "rgba(255, 215, 0, 0.1)",   // Gold
+    "rgba(255, 127, 80, 0.1)",  // Coral
+    "rgba(240, 230, 140, 0.1)"  // Khaki
+];
+
+
 export class IndentSpectra implements vscode.Disposable {
     // Decorators
     private decorators: vscode.TextEditorDecorationType[] = [];
@@ -15,7 +61,6 @@ export class IndentSpectra implements vscode.Disposable {
     private lightIndicatorWidth = 1;
 
     // Runtime State
-    // Use ReturnType<typeof setTimeout> for compatibility with both Node and Browser environments
     private timeout: ReturnType<typeof setTimeout> | null = null;
 
     // Reusable RegEx for performance (stateful)
@@ -33,13 +78,42 @@ export class IndentSpectra implements vscode.Disposable {
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        // Primitives (Input Validation: Clamp delay to minimum 10ms)
+        // Primitives
         this.updateDelay = Math.max(10, config.get<number>('updateDelay', 100));
         this.indicatorStyle = config.get<'classic' | 'light'>('indicatorStyle', 'classic');
         this.lightIndicatorWidth = config.get<number>('lightIndicatorWidth', 1);
 
-        // Colors
-        const colors = config.get<string[]>('colors', []);
+        // Color Selection Logic
+        const preset = config.get<string>('colorPreset', 'universal');
+        let colors: string[] = [];
+
+        switch (preset) {
+            case 'protan-deuteran':
+                colors = PALETTE_PROTAN_DEUTERAN;
+                break;
+            case 'tritan':
+                colors = PALETTE_TRITAN;
+                break;
+            case 'cool':
+                colors = PALETTE_COOL;
+                break;
+            case 'warm':
+                colors = PALETTE_WARM;
+                break;
+            case 'custom':
+                colors = config.get<string[]>('colors', []);
+                break;
+            case 'universal':
+            default:
+                colors = PALETTE_UNIVERSAL;
+                break;
+        }
+
+        // Fallback if custom array is empty
+        if (colors.length === 0) {
+            colors = PALETTE_UNIVERSAL;
+        }
+
         const errorColor = config.get<string>('errorColor', '');
         const mixColor = config.get<string>('mixColor', '');
 
@@ -109,7 +183,7 @@ export class IndentSpectra implements vscode.Disposable {
         if (this.timeout) {
             clearTimeout(this.timeout);
         }
-        // Debounce update
+        // Debounce update using Node.js timeout
         this.timeout = setTimeout(() => this.update(), this.updateDelay);
     }
 
@@ -165,7 +239,7 @@ export class IndentSpectra implements vscode.Disposable {
                 doc
             );
 
-            // Logic Update: Always distribute blocks to rainbow colors (Underlay)
+            // Logic: Always distribute blocks to rainbow colors (Underlay)
             for (let i = 0; i < blockRanges.length; i++) {
                 const colorIndex = i % this.decorators.length;
                 ranges[colorIndex].push(blockRanges[i]);
