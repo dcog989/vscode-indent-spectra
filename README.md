@@ -2,6 +2,8 @@
 
 *Indent Spectra* is an indentation highlighter for Visual Studio Code. It colorizes indentation levels to make code structure instantly readable.
 
+It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern](#comparison-with-indent-rainbow).
+
 ## Features
 
 - 🚀 **High Performance**: Built with a modernized O(1) rendering engine designed for speed.
