@@ -15,14 +15,14 @@
 
 Choose from color palettes designed from first principles using color theory frameworks Okabe-Ito, Temperature Alternation, and Analogous Harmony.
 
-| Preset                  | Description                                                                               |
-| :---------------------- | :---------------------------------------------------------------------------------------- |
-| **Universal** (Default) | High-contrast interleaved colors (Gold, Royal Blue, Pink, Cyan). Optimized for all users. |
-| **Protan/Deuteran**     | Safe for Red/Green color blindness. Uses Blue/Yellow/Gray scales.                         |
-| **Tritan**              | Safe for Blue color blindness. Uses Red/Teal/Gray scales.                                 |
-| **Cool**                | Calming blues and turquoises.                                                             |
-| **Warm**                | Energetic golds, corals, and salmons.                                                     |
-| **Custom**              | Use your own specific color array.                                                        |
+| Preset                  | Description                                                            |
+| :---------------------- | :--------------------------------------------------------------------- |
+| **Universal** (Default) | High-contrast (Gold, Royal Blue, Pink, Cyan), optimized for all users. |
+| **Protan/Deuteran**     | Safe for Red/Green color blindness. Uses Blue/Yellow/Gray scales.      |
+| **Tritan**              | Safe for Blue color blindness. Uses Red/Teal/Gray scales.              |
+| **Cool**                | Calming blues and turquoises.                                          |
+| **Warm**                | Energetic golds, corals, and salmons.                                  |
+| **Custom**              | Use your own color array.                                              |
 
 ## Configuration
 
@@ -55,7 +55,11 @@ Customize *Indent Spectra* in your `settings.json` or via the Settings UI:
 
 ## Requirements
 
-VS Code 1.106.0 or higher.
+VS Code 1.106.0+. Probably works on previous versions, but not tested.
+
+## Acknowledgements
+
+Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName=oderwat.indent-rainbow).
 
 ## License
 

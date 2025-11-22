@@ -1,9 +1,9 @@
 {
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
-    "description": "High-performance indentation highlighting with modern architecture.",
+    "description": "Colorizes indentation levels. Modern architecture. Color theory-based palettes. 'indent-rainbow'-inspired.",
     "version": "1.1.0",
-    "publisher": "user",
+    "publisher": "dcog989",
     "engines": {
         "vscode": "^1.106.2"
     },
