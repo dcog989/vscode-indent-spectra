@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 const DEFAULT_OPACITY_LIGHT = 0.08;
 const DEFAULT_OPACITY_COLORBLIND = 0.2;
 const DEFAULT_OPACITY_AESTHETIC = 0.1;
+const TAB_SIZE_CACHE_TTL = 5000; // 5 seconds
+const DEFAULT_TAB_SIZE = 4;
 
 // --- Palette Definitions ---
 
@@ -42,6 +44,16 @@ const PALETTE_WARM = [
     `rgba(240, 230, 140, ${DEFAULT_OPACITY_AESTHETIC})`
 ];
 
+// REFACTOR #3: Palette management extracted to separate object
+type PaletteKey = 'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm';
+const PALETTES: Record<PaletteKey, string[]> = {
+    'universal': PALETTE_UNIVERSAL,
+    'protan-deuteran': PALETTE_PROTAN_DEUTERAN,
+    'tritan': PALETTE_TRITAN,
+    'cool': PALETTE_COOL,
+    'warm': PALETTE_WARM
+};
+
 // --- Type-Safe Configuration ---
 interface IndentSpectraConfig {
     updateDelay: number;
@@ -56,11 +68,14 @@ interface IndentSpectraConfig {
     lightIndicatorWidth: number;
 }
 
+// --- Analysis Result Type ---
+interface IndentationAnalysisResult {
+    rainbow: vscode.Range[][];
+    errors: vscode.Range[];
+    mixed: vscode.Range[];
+}
+
 // --- Color Validation Helper ---
-/**
- * Validates that a color string is a valid CSS color format.
- * Uses regex-based validation since this runs in Node.js context.
- */
 function isValidColor(color: string): boolean {
     if (!color || typeof color !== 'string') return false;
 
@@ -113,6 +128,29 @@ function isValidColor(color: string): boolean {
     return namedColors.has(color.toLowerCase());
 }
 
+/**
+ * REFACTOR #5: Extract configuration loading logic
+ */
+function loadConfigurationFromVSCode(): Omit<IndentSpectraConfig, 'ignoredLanguages' | 'ignoreErrorLanguages'> & {
+    ignoredLanguagesArray: string[];
+    ignoreErrorLanguagesArray: string[];
+} {
+    const config = vscode.workspace.getConfiguration('indentSpectra');
+
+    return {
+        updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
+        colorPreset: config.get<'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm' | 'custom'>('colorPreset', 'universal'),
+        colors: config.get<string[]>('colors', []),
+        errorColor: config.get<string>('errorColor', ''),
+        mixColor: config.get<string>('mixColor', ''),
+        ignorePatterns: config.get<string[]>('ignorePatterns', []),
+        ignoredLanguagesArray: config.get<string[]>('ignoredLanguages', []),
+        ignoreErrorLanguagesArray: config.get<string[]>('ignoreErrorLanguages', []),
+        indicatorStyle: config.get<'classic' | 'light'>('indicatorStyle', 'classic'),
+        lightIndicatorWidth: config.get<number>('lightIndicatorWidth', 1)
+    };
+}
+
 export class IndentSpectra implements vscode.Disposable {
     // Decorators
     private decorators: vscode.TextEditorDecorationType[] = [];
@@ -139,7 +177,6 @@ export class IndentSpectra implements vscode.Disposable {
 
     // Cache for tab size per document
     private tabSizeCache = new Map<string, { value: number; timestamp: number }>();
-    private readonly TAB_SIZE_CACHE_TTL = 5000; // 5 seconds
 
     // Runtime State
     private timeout: ReturnType<typeof setTimeout> | null = null;
@@ -157,33 +194,39 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * PERF FIX #3: Only reload decorators if style/color settings actually changed
+     * REFACTOR #10: Extract error highlighting logic into separate method
+     */
+    private shouldSkipErrorHighlighting(languageId: string): boolean {
+        return this.config.ignoreErrorLanguages.has(languageId);
+    }
+
+    /**
+     * Reloads configuration and refreshes decorators efficiently.
      */
     public reloadConfig(): void {
-        const config = vscode.workspace.getConfiguration('indentSpectra');
+        const rawConfig = loadConfigurationFromVSCode();
 
         // Extract config values with type safety
         const newConfig: IndentSpectraConfig = {
-            updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
-            colorPreset: config.get<'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm' | 'custom'>('colorPreset', 'universal'),
-            colors: config.get<string[]>('colors', []),
-            errorColor: config.get<string>('errorColor', ''),
-            mixColor: config.get<string>('mixColor', ''),
-            ignorePatterns: config.get<string[]>('ignorePatterns', []),
-            ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
-            ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
-            indicatorStyle: config.get<'classic' | 'light'>('indicatorStyle', 'classic'),
-            lightIndicatorWidth: config.get<number>('lightIndicatorWidth', 1)
+            updateDelay: rawConfig.updateDelay,
+            colorPreset: rawConfig.colorPreset,
+            colors: rawConfig.colors,
+            errorColor: rawConfig.errorColor,
+            mixColor: rawConfig.mixColor,
+            ignorePatterns: rawConfig.ignorePatterns,
+            ignoredLanguages: new Set(rawConfig.ignoredLanguagesArray),
+            ignoreErrorLanguages: new Set(rawConfig.ignoreErrorLanguagesArray),
+            indicatorStyle: rawConfig.indicatorStyle,
+            lightIndicatorWidth: rawConfig.lightIndicatorWidth
         };
 
         this.config = newConfig;
         this.tabSizeCache.clear();
 
-        // PERF FIX #1: Only recompile patterns if they changed
-        const patternString = newConfig.ignorePatterns.join('|');
+        // Recompile patterns if they changed
         this.compileIgnorePatterns(newConfig.ignorePatterns);
 
-        // PERF FIX #3: Only dispose and recreate decorators if appearance settings changed
+        // Only dispose and recreate decorators if appearance settings changed
         const styleChanged =
             newConfig.colorPreset !== this.lastColorPreset ||
             newConfig.indicatorStyle !== this.lastIndicatorStyle ||
@@ -203,7 +246,7 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * PERF FIX #1: Compile ignore patterns once and create combined pattern
+     * REFACTOR #1: Compile ignore patterns once and create combined pattern
      */
     private compileIgnorePatterns(patternStrings: string[]): void {
         this.compiledIgnorePatterns = [];
@@ -240,71 +283,75 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * Initialize decorators only once per color/style configuration
+     * REFACTOR #2: Extract decorator creation logic
+     */
+    private createDecoratorOptions(
+        color: string,
+        style: 'classic' | 'light',
+        width: number
+    ): vscode.DecorationRenderOptions {
+        if (style === 'light') {
+            return {
+                borderWidth: `0 0 0 ${width}px`,
+                borderStyle: 'solid',
+                borderColor: color
+            };
+        }
+        return {
+            backgroundColor: color
+        };
+    }
+
+    /**
+     * REFACTOR #3 & #2: Initialize decorators only once per color/style configuration
      */
     private initializeDecorators(config: IndentSpectraConfig): void {
-        let colors: string[] = [];
-
-        switch (config.colorPreset) {
-            case 'protan-deuteran':
-                colors = PALETTE_PROTAN_DEUTERAN;
-                break;
-            case 'tritan':
-                colors = PALETTE_TRITAN;
-                break;
-            case 'cool':
-                colors = PALETTE_COOL;
-                break;
-            case 'warm':
-                colors = PALETTE_WARM;
-                break;
-            case 'custom':
-                colors = config.colors.filter(color => {
-                    if (!isValidColor(color)) {
-                        console.warn(`[IndentSpectra] Invalid color format: ${color}`);
-                        return false;
-                    }
-                    return true;
-                });
-                break;
-            case 'universal':
-            default:
-                colors = PALETTE_UNIVERSAL;
-                break;
-        }
-
-        if (colors.length === 0) {
-            colors = PALETTE_UNIVERSAL;
-        }
+        const colors = this.resolveColorPalette(config);
 
         // Create decorators
-        this.decorators = colors.map(color => {
-            const options: vscode.DecorationRenderOptions = {};
-            if (config.indicatorStyle === 'light') {
-                options.borderWidth = `0 0 0 ${config.lightIndicatorWidth}px`;
-                options.borderStyle = 'solid';
-                options.borderColor = color;
-            } else {
-                options.backgroundColor = color;
-            }
-            return vscode.window.createTextEditorDecorationType(options);
-        });
+        this.decorators = colors.map(color =>
+            vscode.window.createTextEditorDecorationType(
+                this.createDecoratorOptions(color, config.indicatorStyle, config.lightIndicatorWidth)
+            )
+        );
 
         // Create error decorator
-        const errorColor = config.errorColor;
-        if (errorColor && isValidColor(errorColor)) {
+        if (config.errorColor && isValidColor(config.errorColor)) {
             this.errorDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: errorColor
+                backgroundColor: config.errorColor
             });
         }
 
         // Create mix decorator
-        const mixColor = config.mixColor;
-        if (mixColor && isValidColor(mixColor)) {
+        if (config.mixColor && isValidColor(config.mixColor)) {
             this.mixDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: mixColor
+                backgroundColor: config.mixColor
             });
         }
+    }
+
+    /**
+     * REFACTOR #3: Extract palette resolution logic
+     */
+    private resolveColorPalette(config: IndentSpectraConfig): string[] {
+        let colors: string[] = [];
+
+        if (config.colorPreset === 'custom') {
+            colors = config.colors.filter(color => {
+                if (!isValidColor(color)) {
+                    console.warn(`[IndentSpectra] Invalid color format: ${color}`);
+                    return false;
+                }
+                return true;
+            });
+        } else if (config.colorPreset in PALETTES) {
+            colors = PALETTES[config.colorPreset as PaletteKey];
+        } else {
+            colors = PALETTES.universal;
+        }
+
+        // Fallback if all colors were invalid or palette was empty
+        return colors.length > 0 ? colors : PALETTES.universal;
     }
 
     public dispose(): void {
@@ -330,7 +377,7 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * PERF FIX #2: Separated concerns for better testability and caching
+     * REFACTOR #6: Separated concerns for better testability and caching
      */
     private update(): void {
         const editor = vscode.window.activeTextEditor;
@@ -341,7 +388,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         const text = doc.getText();
         const tabSize = this.getTabSize(editor);
-        const skipErrors = this.config.ignoreErrorLanguages.has(doc.languageId);
+        const skipErrors = this.shouldSkipErrorHighlighting(doc.languageId);
 
         const analysisResult = this.analyzeIndentation(text, doc, tabSize, skipErrors);
         this.applyDecorations(editor, analysisResult);
@@ -355,11 +402,7 @@ export class IndentSpectra implements vscode.Disposable {
         doc: vscode.TextDocument,
         tabSize: number,
         skipErrors: boolean
-    ): {
-        rainbow: vscode.Range[][];
-        errors: vscode.Range[];
-        mixed: vscode.Range[];
-    } {
+    ): IndentationAnalysisResult {
         const rainbow: vscode.Range[][] = Array.from(
             { length: this.decorators.length },
             () => []
@@ -367,7 +410,6 @@ export class IndentSpectra implements vscode.Disposable {
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
 
-        // PERF FIX #1: Use combined pattern for single pass
         const ignoredLines = this.findIgnoredLinesOptimized(text, doc);
 
         this.indentRegex.lastIndex = 0;
@@ -414,15 +456,11 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * Apply all decorations to the editor
+     * REFACTOR #6: Apply all decorations to the editor
      */
     private applyDecorations(
         editor: vscode.TextEditor,
-        result: {
-            rainbow: vscode.Range[][];
-            errors: vscode.Range[];
-            mixed: vscode.Range[];
-        }
+        result: IndentationAnalysisResult
     ): void {
         // Batch apply all decorators at once
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.rainbow[i]));
@@ -431,35 +469,18 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * PERF FIX #2: Cache tab size per editor/document
+     * REFACTOR #4: Cache tab size per editor/document with TTL
      */
     private getTabSize(editor: vscode.TextEditor): number {
         const docUri = editor.document.uri.toString();
         const cached = this.tabSizeCache.get(docUri);
 
         // Return cached value if still fresh
-        if (cached && Date.now() - cached.timestamp < this.TAB_SIZE_CACHE_TTL) {
+        if (cached && Date.now() - cached.timestamp < TAB_SIZE_CACHE_TTL) {
             return cached.value;
         }
 
-        let tabSize = 4; // default
-
-        // 1. Try editor-specific tab size
-        const tabSizeRaw = editor.options.tabSize;
-        if (typeof tabSizeRaw === 'number' && tabSizeRaw > 0) {
-            tabSize = tabSizeRaw;
-        } else if (typeof tabSizeRaw === 'string') {
-            const parsed = parseInt(tabSizeRaw, 10);
-            if (!isNaN(parsed) && parsed > 0) {
-                tabSize = parsed;
-            }
-        } else {
-            // 2. Try global configuration
-            const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
-            if (globalTabSize && globalTabSize > 0) {
-                tabSize = globalTabSize;
-            }
-        }
+        const tabSize = this.resolveTabSize(editor);
 
         // Cache the result
         this.tabSizeCache.set(docUri, { value: tabSize, timestamp: Date.now() });
@@ -467,7 +488,33 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * PERF FIX #1: Optimized ignored lines detection with combined pattern
+     * REFACTOR #4: Extract tab size resolution logic
+     */
+    private resolveTabSize(editor: vscode.TextEditor): number {
+        // 1. Try editor-specific tab size
+        const tabSizeRaw = editor.options.tabSize;
+        if (typeof tabSizeRaw === 'number' && tabSizeRaw > 0) {
+            return tabSizeRaw;
+        }
+        if (typeof tabSizeRaw === 'string') {
+            const parsed = parseInt(tabSizeRaw, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+
+        // 2. Try global configuration
+        const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
+        if (globalTabSize && globalTabSize > 0) {
+            return globalTabSize;
+        }
+
+        // 3. Fallback
+        return DEFAULT_TAB_SIZE;
+    }
+
+    /**
+     * REFACTOR #1: Optimized ignored lines detection with combined pattern
      */
     private findIgnoredLinesOptimized(text: string, doc: vscode.TextDocument): Set<number> {
         const ignoredLines = new Set<number>();
