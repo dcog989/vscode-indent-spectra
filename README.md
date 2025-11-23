@@ -4,7 +4,7 @@
 
 It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern](#comparison-with-indent-rainbow).
 
-![Indent Spectra screenshot](assets\screen-1.png)
+![Indent Spectra screenshot](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/screen-1.png)
 
 ## Features
 
@@ -67,7 +67,7 @@ Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName
 
 ## Comparison with Indent Rainbow
 
-For starters, it's lightweight: *Indent Spectra* install file = 100 KB, *Indent Rainbow* = 8.45 MB. Or, *100 KB vs 8,450 KB*.
+For starters, it's lightweight: *Indent Spectra* install file = 18 KB, *Indent Rainbow* = 8.45 MB. Not a typo: *18 KB vs 8,450 KB*.
 
 ### 1. Performance, Efficiency
 
