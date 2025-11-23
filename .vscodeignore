@@ -1,23 +1,35 @@
+# ---------------------------------------------------------
+# Exclude
+# ---------------------------------------------------------
 .ai/
 .docs/
 .eslintrc.json
-.git/**
-.github/**
+.git/
+.github/
 .gitignore
 .repomixignore
 .scripts/
 .tests/
-.vscode-test/**
-.vscode/**
+.vscode-test/
+.vscode/
 **/*.map
 **/*.ts
 **/*.tsbuildinfo
 assets/icon.svg
 assets/screen-1.png
-node_modules/**
-out/test/**
+node_modules/
+out/test/
 repomix.config.json
-src/**
-tests/**
+src/
+tests/
 tsconfig.json
 vsc-extension-quickstart.md
+
+# ---------------------------------------------------------
+# Include
+# ---------------------------------------------------------
+!dist/
+!package.json
+!README.md
+!CHANGELOG.md
+!assets/icon.png
