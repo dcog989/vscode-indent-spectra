@@ -1,7 +1,7 @@
 {
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
-    "description": "Colorizes indentation. Modern architecture. Fast. Color theory-based palettes. Same as 'indent-rainbow' but better.",
+    "description": "Colorizes indentation. Modern architecture. Fast. Color theory-based palettes. Like 'indent-rainbow' but better.",
     "version": "1.2.1",
     "publisher": "dcog989",
     "icon": "assets/icon.png",
