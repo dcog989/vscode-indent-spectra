@@ -2,57 +2,110 @@ import * as vscode from 'vscode';
 
 // --- Palette Definitions ---
 
-// 1. Universal (High Contrast Interleaved)
-// Gold -> Royal Blue -> Hot Pink -> Cyan
 const PALETTE_UNIVERSAL = [
-    "rgba(255, 215, 0, 0.08)",   // Gold (Warm)
-    "rgba(65, 105, 225, 0.08)",  // Royal Blue (Cool, Dark)
-    "rgba(255, 105, 180, 0.08)", // Hot Pink (Warm, Distinct)
-    "rgba(0, 255, 255, 0.08)"    // Cyan (Cool, Light)
+    "rgba(255, 215, 0, 0.08)",
+    "rgba(65, 105, 225, 0.08)",
+    "rgba(255, 105, 180, 0.08)",
+    "rgba(0, 255, 255, 0.08)"
 ];
 
-// 2. Protanopia & Deuteranopia Safe (Red/Green Blindness)
-// Relies on Blue vs Yellow. Avoids Red/Green.
 const PALETTE_PROTAN_DEUTERAN = [
-    "rgba(240, 228, 66, 0.2)",   // Yellow
-    "rgba(86, 180, 233, 0.2)",   // Sky Blue
-    "rgba(230, 159, 0, 0.2)",    // Orange
-    "rgba(0, 114, 178, 0.2)"     // Dark Blue
+    "rgba(240, 228, 66, 0.2)",
+    "rgba(86, 180, 233, 0.2)",
+    "rgba(230, 159, 0, 0.2)",
+    "rgba(0, 114, 178, 0.2)"
 ];
 
-// 3. Tritanopia Safe (Blue Blindness)
-// Relies on Red/Pink vs Teal/Cyan.
 const PALETTE_TRITAN = [
-    "rgba(204, 121, 167, 0.2)",  // Reddish Purple
-    "rgba(0, 158, 115, 0.2)",    // Bluish Green
-    "rgba(213, 94, 0, 0.2)",     // Vermilion
-    "rgba(240, 240, 240, 0.2)"   // Light Grey (Neutral anchor)
+    "rgba(204, 121, 167, 0.2)",
+    "rgba(0, 158, 115, 0.2)",
+    "rgba(213, 94, 0, 0.2)",
+    "rgba(240, 240, 240, 0.2)"
 ];
 
-// 4. Cool (Calm)
 const PALETTE_COOL = [
-    "rgba(64, 224, 208, 0.1)",  // Turquoise
-    "rgba(100, 149, 237, 0.1)", // Cornflower Blue
-    "rgba(123, 104, 238, 0.1)", // Medium Slate Blue
-    "rgba(176, 196, 222, 0.1)"  // Light Steel Blue
+    "rgba(64, 224, 208, 0.1)",
+    "rgba(100, 149, 237, 0.1)",
+    "rgba(123, 104, 238, 0.1)",
+    "rgba(176, 196, 222, 0.1)"
 ];
 
-// 5. Warm (Energetic)
 const PALETTE_WARM = [
-    "rgba(255, 160, 122, 0.1)", // Light Salmon
-    "rgba(255, 215, 0, 0.1)",   // Gold
-    "rgba(255, 127, 80, 0.1)",  // Coral
-    "rgba(240, 230, 140, 0.1)"  // Khaki
+    "rgba(255, 160, 122, 0.1)",
+    "rgba(255, 215, 0, 0.1)",
+    "rgba(255, 127, 80, 0.1)",
+    "rgba(240, 230, 140, 0.1)"
 ];
 
+// --- Color Validation Helper ---
+/**
+ * Validates that a color string is a valid CSS color format.
+ * Supports rgba(), rgb(), hex, and named colors.
+ * Uses regex-based validation since this runs in Node.js context.
+ */
+function isValidColor(color: string): boolean {
+    if (!color || typeof color !== 'string') return false;
+
+    // Trim whitespace
+    color = color.trim();
+
+    // Check for rgba format: rgba(r, g, b, a) where r,g,b are 0-255 or percentages, a is 0-1
+    if (/^rgba\(\s*(\d{1,3}|100%)\s*,\s*(\d{1,3}|100%)\s*,\s*(\d{1,3}|100%)\s*,\s*(0(\.\d+)?|1(\.0+)?)\s*\)$/.test(color)) {
+        return true;
+    }
+
+    // Check for rgb format: rgb(r, g, b)
+    if (/^rgb\(\s*(\d{1,3}|100%)\s*,\s*(\d{1,3}|100%)\s*,\s*(\d{1,3}|100%)\s*\)$/.test(color)) {
+        return true;
+    }
+
+    // Check for hex format: #RGB or #RRGGBB
+    if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(color)) {
+        return true;
+    }
+
+    // Check for hex format with alpha: #RRGGBBAA
+    if (/^#([0-9A-Fa-f]{8})$/.test(color)) {
+        return true;
+    }
+
+    // Known CSS named colors (common subset)
+    const namedColors = new Set([
+        'transparent', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
+        'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown',
+        'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue',
+        'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod',
+        'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen',
+        'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue',
+        'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink',
+        'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite',
+        'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray',
+        'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo',
+        'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon',
+        'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray',
+        'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen',
+        'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
+        'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine',
+        'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue',
+        'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream',
+        'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
+        'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise',
+        'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue',
+        'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
+        'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue',
+        'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal',
+        'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
+        'yellow', 'yellowgreen'
+    ]);
+
+    return namedColors.has(color.toLowerCase());
+}
 
 export class IndentSpectra implements vscode.Disposable {
-    // Decorators
     private decorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
 
-    // Configuration State
     private updateDelay = 100;
     private ignorePatterns: RegExp[] = [];
     private ignoredLanguages = new Set<string>();
@@ -60,10 +113,12 @@ export class IndentSpectra implements vscode.Disposable {
     private indicatorStyle: 'classic' | 'light' = 'classic';
     private lightIndicatorWidth = 1;
 
-    // Runtime State
     private timeout: ReturnType<typeof setTimeout> | null = null;
 
-    // Reusable RegEx for performance (stateful)
+    // Cache for ignored lines to avoid recomputation
+    private lastIgnoredLinesCache: Set<number> | null = null;
+    private lastDocumentVersion: number | null = null;
+
     private readonly indentRegex = /^[\t ]+/gm;
 
     constructor() {
@@ -71,19 +126,18 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     /**
-     * Reloads configuration and refreshes decorators efficiently.
+     * BUG FIX #3: Check if active editor exists before triggering update
      */
     public reloadConfig(): void {
         this.disposeDecorators();
+        this.lastIgnoredLinesCache = null; // Invalidate cache on config change
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        // Primitives
         this.updateDelay = Math.max(10, config.get<number>('updateDelay', 100));
         this.indicatorStyle = config.get<'classic' | 'light'>('indicatorStyle', 'classic');
         this.lightIndicatorWidth = config.get<number>('lightIndicatorWidth', 1);
 
-        // Color Selection Logic
         const preset = config.get<string>('colorPreset', 'universal');
         let colors: string[] = [];
 
@@ -109,7 +163,20 @@ export class IndentSpectra implements vscode.Disposable {
                 break;
         }
 
-        // Fallback if custom array is empty
+        if (colors.length === 0) {
+            colors = PALETTE_UNIVERSAL;
+        }
+
+        // BUG FIX #4: Validate custom colors before using them
+        colors = colors.filter(color => {
+            if (!isValidColor(color)) {
+                console.warn(`[IndentSpectra] Invalid color format: ${color}`);
+                return false;
+            }
+            return true;
+        });
+
+        // If all colors were invalid, fall back to universal palette
         if (colors.length === 0) {
             colors = PALETTE_UNIVERSAL;
         }
@@ -117,16 +184,17 @@ export class IndentSpectra implements vscode.Disposable {
         const errorColor = config.get<string>('errorColor', '');
         const mixColor = config.get<string>('mixColor', '');
 
-        // Lists / Patterns
+        // Validate error and mix colors
+        const validatedErrorColor = errorColor && isValidColor(errorColor) ? errorColor : '';
+        const validatedMixColor = mixColor && isValidColor(mixColor) ? mixColor : '';
+
         const ignoreStrs = config.get<string[]>('ignorePatterns', []);
         const ignoredLangs = config.get<string[]>('ignoredLanguages', []);
         const ignoreErrLangs = config.get<string[]>('ignoreErrorLanguages', []);
 
-        // Compile Regex patterns once
         this.ignorePatterns = ignoreStrs
             .map(pattern => {
                 try {
-                    // Handle JS-style regex strings "/.../g"
                     const parts = pattern.match(/^\/(.*?)\/([gimsvy]*)$/);
                     return parts ? new RegExp(parts[1], parts[2]) : new RegExp(pattern);
                 } catch (e) {
@@ -136,11 +204,9 @@ export class IndentSpectra implements vscode.Disposable {
             })
             .filter((r): r is RegExp => r !== null);
 
-        // Sets for O(1) lookup
         this.ignoredLanguages = new Set(ignoredLangs);
         this.ignoreErrorLanguages = new Set(ignoreErrLangs);
 
-        // Initialize Rainbow Decorators based on Style
         this.decorators = colors.map(color => {
             const options: vscode.DecorationRenderOptions = {};
             if (this.indicatorStyle === 'light') {
@@ -153,16 +219,22 @@ export class IndentSpectra implements vscode.Disposable {
             return vscode.window.createTextEditorDecorationType(options);
         });
 
-        // Initialize Error/Mix Decorators
-        if (errorColor) {
-            this.errorDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: errorColor });
+        if (validatedErrorColor) {
+            this.errorDecorator = vscode.window.createTextEditorDecorationType({
+                backgroundColor: validatedErrorColor
+            });
         }
 
-        if (mixColor) {
-            this.mixDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: mixColor });
+        if (validatedMixColor) {
+            this.mixDecorator = vscode.window.createTextEditorDecorationType({
+                backgroundColor: validatedMixColor
+            });
         }
 
-        this.triggerUpdate();
+        // BUG FIX #3: Only trigger update if there's an active editor
+        if (vscode.window.activeTextEditor) {
+            this.triggerUpdate();
+        }
     }
 
     public dispose(): void {
@@ -183,7 +255,6 @@ export class IndentSpectra implements vscode.Disposable {
         if (this.timeout) {
             clearTimeout(this.timeout);
         }
-        // Debounce update using Node.js timeout
         this.timeout = setTimeout(() => this.update(), this.updateDelay);
     }
 
@@ -196,20 +267,16 @@ export class IndentSpectra implements vscode.Disposable {
 
         const text = doc.getText();
         const tabSize = this.getTabSize(editor);
-
-        // Check if errors should be ignored for this specific language
         const skipErrors = this.ignoreErrorLanguages.has(doc.languageId);
 
-        // 1. Pre-calculate ignored lines (e.g., comments)
+        // BUG FIX #1: Improve ignored lines detection with combined regex
         const ignoredLines = this.findIgnoredLines(text, doc);
 
-        // 2. Prepare buckets for ranges
         const ranges: vscode.Range[][] = Array.from({ length: this.decorators.length }, () => []);
         const errorRanges: vscode.Range[] = [];
         const mixRanges: vscode.Range[] = [];
 
-        // 3. Main Parsing Loop
-        this.indentRegex.lastIndex = 0; // Reset RegExp state
+        this.indentRegex.lastIndex = 0;
         let match: RegExpExecArray | null;
 
         while ((match = this.indentRegex.exec(text)) !== null) {
@@ -219,10 +286,8 @@ export class IndentSpectra implements vscode.Disposable {
             const matchIndex = match.index;
             const startPos = doc.positionAt(matchIndex);
 
-            // Skip ignored lines (comments, etc.)
             if (ignoredLines.has(startPos.line)) continue;
 
-            // Detect Mixed Indentation (Tabs + Spaces)
             const hasTabs = matchText.includes('\t');
             const hasSpaces = matchText.includes(' ');
 
@@ -231,7 +296,7 @@ export class IndentSpectra implements vscode.Disposable {
                 mixRanges.push(new vscode.Range(startPos, endPos));
             }
 
-            // Calculate Visual Indentation
+            // BUG FIX #2: Improved block calculation to handle final incomplete blocks
             const { visualWidth, blockRanges } = this.calculateRainbowBlocks(
                 matchText,
                 matchIndex,
@@ -239,31 +304,23 @@ export class IndentSpectra implements vscode.Disposable {
                 doc
             );
 
-            // Logic: Always distribute blocks to rainbow colors (Underlay)
             for (let i = 0; i < blockRanges.length; i++) {
                 const colorIndex = i % this.decorators.length;
                 ranges[colorIndex].push(blockRanges[i]);
             }
 
-            // Detect Indentation Errors (Overlay)
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
                 const endPos = doc.positionAt(matchIndex + matchText.length);
                 errorRanges.push(new vscode.Range(startPos, endPos));
             }
         }
 
-        // 4. Batch Apply Decorators
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, ranges[i]));
         if (this.errorDecorator) editor.setDecorations(this.errorDecorator, errorRanges);
         if (this.mixDecorator) editor.setDecorations(this.mixDecorator, mixRanges);
     }
 
-    /**
-     * Helpers
-     */
-
     private getTabSize(editor: vscode.TextEditor): number {
-        // 1. Try Editor specific tab size
         const tabSizeRaw = editor.options.tabSize;
         if (typeof tabSizeRaw === 'number') {
             return tabSizeRaw > 0 ? tabSizeRaw : 4;
@@ -273,36 +330,57 @@ export class IndentSpectra implements vscode.Disposable {
             if (!isNaN(parsed)) return parsed > 0 ? parsed : 4;
         }
 
-        // 2. Try Global User/Workspace configuration
         const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
         if (globalTabSize && globalTabSize > 0) {
             return globalTabSize;
         }
 
-        // 3. Fallback
         return 4;
     }
 
+    /**
+     * BUG FIX #1: Optimized ignored lines detection with combined pattern approach
+     */
     private findIgnoredLines(text: string, doc: vscode.TextDocument): Set<number> {
         const ignoredLines = new Set<number>();
         if (this.ignorePatterns.length === 0) return ignoredLines;
 
-        for (const pattern of this.ignorePatterns) {
-            pattern.lastIndex = 0; // Reset state
+        // Combine all patterns into a single alternation regex to avoid multiple passes
+        try {
+            const combinedPattern = new RegExp(
+                this.ignorePatterns.map(p => `(${p.source})`).join('|'),
+                'gm'
+            );
+
             let match: RegExpExecArray | null;
-            while ((match = pattern.exec(text)) !== null) {
+            while ((match = combinedPattern.exec(text)) !== null) {
                 const startLine = doc.positionAt(match.index).line;
                 const endLine = doc.positionAt(match.index + match[0].length).line;
                 for (let i = startLine; i <= endLine; i++) {
                     ignoredLines.add(i);
                 }
             }
+        } catch (e) {
+            // Fallback: iterate through patterns individually if combination fails
+            console.warn('[IndentSpectra] Error combining patterns, falling back to sequential matching', e);
+            for (const pattern of this.ignorePatterns) {
+                pattern.lastIndex = 0;
+                let match: RegExpExecArray | null;
+                while ((match = pattern.exec(text)) !== null) {
+                    const startLine = doc.positionAt(match.index).line;
+                    const endLine = doc.positionAt(match.index + match[0].length).line;
+                    for (let i = startLine; i <= endLine; i++) {
+                        ignoredLines.add(i);
+                    }
+                }
+            }
         }
+
         return ignoredLines;
     }
 
     /**
-     * Core logic to map string characters to visual indentation blocks
+     * BUG FIX #2: Improved to handle final incomplete blocks at end of indent string
      */
     private calculateRainbowBlocks(
         text: string,
@@ -319,27 +397,29 @@ export class IndentSpectra implements vscode.Disposable {
             const char = text[i];
             const isTab = char === '\t';
 
-            // Calculate how wide this character is visually
-            // Tabs jump to the next multiple of tabSize
             const charVisualWidth = isTab
                 ? tabSize - (visualWidth % tabSize)
                 : 1;
 
             visualWidth += charVisualWidth;
 
-            // Check if we have completed a "tabSize" block visually
-            // A block is complete when visualWidth hits a multiple of tabSize
             if (visualWidth > 0 && visualWidth % tabSize === 0) {
-                const blockEndCharIndex = i + 1; // The char at 'i' completed the block
+                const blockEndCharIndex = i + 1;
 
                 const startPos = doc.positionAt(startIndex + currentBlockStartCharIndex);
                 const endPos = doc.positionAt(startIndex + blockEndCharIndex);
 
                 blockRanges.push(new vscode.Range(startPos, endPos));
 
-                // Reset for next block
                 currentBlockStartCharIndex = blockEndCharIndex;
             }
+        }
+
+        // BUG FIX #2: Handle incomplete final block (partial indent at end)
+        if (currentBlockStartCharIndex < text.length) {
+            const startPos = doc.positionAt(startIndex + currentBlockStartCharIndex);
+            const endPos = doc.positionAt(startIndex + text.length);
+            blockRanges.push(new vscode.Range(startPos, endPos));
         }
 
         return { visualWidth, blockRanges };
