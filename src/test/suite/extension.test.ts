@@ -21,13 +21,13 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
     // ============================================================================
 
     test('Extension should be present', () => {
-        const ext = vscode.extensions.getExtension('user.indent-spectra');
-        assert.ok(ext, 'Extension not found');
+        const ext = vscode.extensions.getExtension('dcog989.indent-spectra');
+        assert.ok(ext, 'Extension not found. Make sure extension is properly installed.');
     });
 
     test('Should activate when a file is opened', async () => {
-        const ext = vscode.extensions.getExtension('user.indent-spectra');
-        assert.ok(ext, 'Extension not found');
+        const ext = vscode.extensions.getExtension('dcog989.indent-spectra');
+        assert.ok(ext, 'Extension not found. Make sure extension is properly installed.');
 
         const doc = await vscode.workspace.openTextDocument({
             content: 'function test() {\n\treturn true;\n}',
