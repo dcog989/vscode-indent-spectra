@@ -10,7 +10,7 @@ async function main() {
             extensionDevelopmentPath,
             extensionTestsPath,
             // Ensure we test against the engine specified in package.json
-            version: '1.106.2'
+            version: '1.106.1'
         });
     } catch (err) {
         console.error('Failed to run tests', err);
