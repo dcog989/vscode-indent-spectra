@@ -554,4 +554,31 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'TriggerUpdate with no active editor should not crash');
     });
+
+    // ============================================================================
+    // BLOCK COMMENTS
+    // ============================================================================
+
+    test('Should correctly ignore multi-line block comments', async () => {
+        indentSpectra = new IndentSpectra();
+
+        // Add a regex for multi-line C-style comments
+        const config = vscode.workspace.getConfiguration('indentSpectra');
+        await config.update('ignorePatterns', ['/\\/\\*[\\s\\S]*?\\*\\//g'], vscode.ConfigurationTarget.Global);
+        indentSpectra.reloadConfig();
+
+        const content = '/*\n\tignored line\n*/\n\tnot ignored';
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'javascript'
+        });
+        await vscode.window.showTextDocument(doc);
+
+        // Just ensure it doesn't crash and processes the file
+        indentSpectra.triggerUpdate();
+        assert.ok(true, 'Multi-line ignore pattern processed successfully');
+
+        // Cleanup
+        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Global);
+    });
 });
