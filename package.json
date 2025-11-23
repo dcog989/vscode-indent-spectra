@@ -123,11 +123,11 @@
     "devDependencies": {
         "@types/glob": "^8.1.0",
         "@types/mocha": "^10.0.10",
-        "@types/node": "^24.x",
-        "@types/vscode": "^1.106.0",
+        "@types/node": "^24.10.1",
+        "@types/vscode": "^1.106.2",
         "@vscode/test-electron": "^2.5.2",
         "glob": "^13.0.0",
         "mocha": "^11.7.5",
-        "typescript": "^5.9.x"
+        "typescript": "^5.9.3"
     }
 }
