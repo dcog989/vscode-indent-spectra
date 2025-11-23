@@ -1,14 +1,13 @@
 import * as vscode from 'vscode';
 
-// --- Magic Constants ---
+// Magic Constants
 const DEFAULT_OPACITY_LIGHT = 0.08;
 const DEFAULT_OPACITY_COLORBLIND = 0.2;
 const DEFAULT_OPACITY_AESTHETIC = 0.1;
 const TAB_SIZE_CACHE_TTL = 5000; // 5 seconds
 const DEFAULT_TAB_SIZE = 4;
 
-// --- Palette Definitions ---
-
+// Palette Definitions
 const PALETTE_UNIVERSAL = [
     `rgba(255, 215, 0, ${DEFAULT_OPACITY_LIGHT})`,
     `rgba(65, 105, 225, ${DEFAULT_OPACITY_LIGHT})`,
@@ -44,7 +43,7 @@ const PALETTE_WARM = [
     `rgba(240, 230, 140, ${DEFAULT_OPACITY_AESTHETIC})`
 ];
 
-// REFACTOR #3: Palette management extracted to separate object
+// Palette management
 type PaletteKey = 'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm';
 const PALETTES: Record<PaletteKey, string[]> = {
     'universal': PALETTE_UNIVERSAL,
@@ -54,7 +53,7 @@ const PALETTES: Record<PaletteKey, string[]> = {
     'warm': PALETTE_WARM
 };
 
-// --- Type-Safe Configuration ---
+// Type-Safe Configuration
 interface IndentSpectraConfig {
     updateDelay: number;
     colorPreset: 'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm' | 'custom';
@@ -68,14 +67,14 @@ interface IndentSpectraConfig {
     lightIndicatorWidth: number;
 }
 
-// --- Analysis Result Type ---
+// Analysis Result Type
 interface IndentationAnalysisResult {
     rainbow: vscode.Range[][];
     errors: vscode.Range[];
     mixed: vscode.Range[];
 }
 
-// --- Color Validation Helper ---
+// Color Validation Helper
 function isValidColor(color: string): boolean {
     if (!color || typeof color !== 'string') return false;
 
@@ -96,7 +95,7 @@ function isValidColor(color: string): boolean {
         return true;
     }
 
-    // Known CSS named colors
+    // CSS named colors
     const namedColors = new Set([
         'transparent', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
         'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown',
@@ -128,9 +127,6 @@ function isValidColor(color: string): boolean {
     return namedColors.has(color.toLowerCase());
 }
 
-/**
- * REFACTOR #5: Extract configuration loading logic
- */
 function loadConfigurationFromVSCode(): Omit<IndentSpectraConfig, 'ignoredLanguages' | 'ignoreErrorLanguages'> & {
     ignoredLanguagesArray: string[];
     ignoreErrorLanguagesArray: string[];
@@ -152,12 +148,11 @@ function loadConfigurationFromVSCode(): Omit<IndentSpectraConfig, 'ignoredLangua
 }
 
 export class IndentSpectra implements vscode.Disposable {
-    // Decorators
     private decorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
 
-    // Configuration State - Type Safe
+    // Configuration State
     private config: IndentSpectraConfig = {
         updateDelay: 100,
         colorPreset: 'universal',
@@ -193,16 +188,11 @@ export class IndentSpectra implements vscode.Disposable {
         this.reloadConfig();
     }
 
-    /**
-     * REFACTOR #10: Extract error highlighting logic into separate method
-     */
+    // Extract error highlighting logic into separate method
     private shouldSkipErrorHighlighting(languageId: string): boolean {
         return this.config.ignoreErrorLanguages.has(languageId);
     }
 
-    /**
-     * Reloads configuration and refreshes decorators efficiently.
-     */
     public reloadConfig(): void {
         const rawConfig = loadConfigurationFromVSCode();
 
@@ -245,9 +235,7 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    /**
-     * REFACTOR #1: Compile ignore patterns once and create combined pattern
-     */
+    // Compile ignore patterns once and create combined pattern
     private compileIgnorePatterns(patternStrings: string[]): void {
         this.compiledIgnorePatterns = [];
         this.combinedIgnorePattern = null;
@@ -282,9 +270,6 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    /**
-     * REFACTOR #2: Extract decorator creation logic
-     */
     private createDecoratorOptions(
         color: string,
         style: 'classic' | 'light',
@@ -302,9 +287,6 @@ export class IndentSpectra implements vscode.Disposable {
         };
     }
 
-    /**
-     * REFACTOR #3 & #2: Initialize decorators only once per color/style configuration
-     */
     private initializeDecorators(config: IndentSpectraConfig): void {
         const colors = this.resolveColorPalette(config);
 
@@ -330,9 +312,6 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    /**
-     * REFACTOR #3: Extract palette resolution logic
-     */
     private resolveColorPalette(config: IndentSpectraConfig): string[] {
         let colors: string[] = [];
 
@@ -376,9 +355,6 @@ export class IndentSpectra implements vscode.Disposable {
         this.timeout = setTimeout(() => this.update(), this.config.updateDelay);
     }
 
-    /**
-     * REFACTOR #6: Separated concerns for better testability and caching
-     */
     private update(): void {
         const editor = vscode.window.activeTextEditor;
         if (!editor) return;
@@ -394,9 +370,7 @@ export class IndentSpectra implements vscode.Disposable {
         this.applyDecorations(editor, analysisResult);
     }
 
-    /**
-     * Analyze indentation and return categorized ranges
-     */
+    // Analyze indentation and return categorized ranges
     private analyzeIndentation(
         text: string,
         doc: vscode.TextDocument,
@@ -455,9 +429,6 @@ export class IndentSpectra implements vscode.Disposable {
         return { rainbow, errors, mixed };
     }
 
-    /**
-     * REFACTOR #6: Apply all decorations to the editor
-     */
     private applyDecorations(
         editor: vscode.TextEditor,
         result: IndentationAnalysisResult
@@ -468,9 +439,7 @@ export class IndentSpectra implements vscode.Disposable {
         if (this.mixDecorator) editor.setDecorations(this.mixDecorator, result.mixed);
     }
 
-    /**
-     * REFACTOR #4: Cache tab size per editor/document with TTL
-     */
+    // Cache tab size per editor/document with TTL
     private getTabSize(editor: vscode.TextEditor): number {
         const docUri = editor.document.uri.toString();
         const cached = this.tabSizeCache.get(docUri);
@@ -487,9 +456,6 @@ export class IndentSpectra implements vscode.Disposable {
         return tabSize;
     }
 
-    /**
-     * REFACTOR #4: Extract tab size resolution logic
-     */
     private resolveTabSize(editor: vscode.TextEditor): number {
         // 1. Try editor-specific tab size
         const tabSizeRaw = editor.options.tabSize;
@@ -513,9 +479,7 @@ export class IndentSpectra implements vscode.Disposable {
         return DEFAULT_TAB_SIZE;
     }
 
-    /**
-     * REFACTOR #1: Optimized ignored lines detection with combined pattern
-     */
+    // Optimized ignored lines detection with combined pattern
     private findIgnoredLinesOptimized(text: string, doc: vscode.TextDocument): Set<number> {
         const ignoredLines = new Set<number>();
 
@@ -548,9 +512,7 @@ export class IndentSpectra implements vscode.Disposable {
         return ignoredLines;
     }
 
-    /**
-     * Calculate rainbow blocks with optimized visual width calculation
-     */
+    // Calculate rainbow blocks with optimized visual width calculation
     private calculateRainbowBlocks(
         text: string,
         startIndex: number,
