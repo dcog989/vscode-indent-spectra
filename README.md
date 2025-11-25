@@ -4,6 +4,8 @@
 
 It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern](#comparison-with-indent-rainbow).
 
+[Install *Indent Spectra* from Marketplace](https://marketplace.visualstudio.com/items?itemName=dcog989.indent-spectra).
+
 ![Indent Spectra screenshot](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/screen-1.png)
 
 ## Features
