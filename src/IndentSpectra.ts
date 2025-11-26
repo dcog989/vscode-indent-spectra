@@ -73,10 +73,6 @@ export class IndentSpectra implements vscode.Disposable {
     // Cache for ignore patterns (compiled once)
     private compiledIgnorePatterns: RegExp[] = [];
 
-    // Cache for tab size per document
-    private tabSizeCache = new Map<string, { value: number; timestamp: number }>();
-
-    // Runtime State
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
 
