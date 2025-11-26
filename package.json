@@ -2,7 +2,7 @@
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
     "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-    "version": "1.2.5",
+    "version": "1.2.7",
     "publisher": "dcog989",
     "icon": "assets/icon.png",
     "repository": {
@@ -78,10 +78,9 @@
                 "indentSpectra.ignorePatterns": {
                     "type": "array",
                     "default": [
-                        "/[ \t]*[*]/g",
-                        "/[ \t]+\\/\\//g"
+                        "/^[ \t]*\\*(?!\\/)/gm"
                     ],
-                    "description": "Regex patterns to ignore (e.g., block comments). Use /pattern/flags format or plain pattern strings."
+                    "description": "Regex patterns to ignore. Defaults ignore JSDoc lines (starting with *) but allow closing */ and single-line // comments."
                 },
                 "indentSpectra.ignoredLanguages": {
                     "type": "array",

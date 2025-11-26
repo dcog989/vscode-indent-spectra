@@ -143,6 +143,11 @@ export class IndentSpectra implements vscode.Disposable {
                         if (!flags.includes('g')) {
                             flags += 'g';
                         }
+                        // Ensure multiline flag is present if start anchor is used
+                        // This prevents ^ from matching only start of string in single-line mode
+                        if (source.includes('^') && !flags.includes('m')) {
+                            flags += 'm';
+                        }
                     }
 
                     return new RegExp(source, flags);
