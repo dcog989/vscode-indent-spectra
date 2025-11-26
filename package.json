@@ -121,7 +121,9 @@
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "test": "node ./out/test/runTest.js"
+        "check-types": "tsc --noEmit",
+        "test": "node ./out/test/runTest.js",
+        "clean": "npm run check-types && node -e \"require('fs').rmSync('dist', {recursive:true, force:true}); require('fs').rmSync('out', {recursive:true, force:true}); require('fs').rmSync('.vscode-test', {recursive:true, force:true});\""
     },
     "devDependencies": {
         "@types/glob": "^8.1.0",
