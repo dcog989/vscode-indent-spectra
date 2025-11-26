@@ -21,7 +21,7 @@ interface IndentSpectraConfig {
 
 // Analysis Result Type
 interface IndentationAnalysisResult {
-    rainbow: vscode.Range[][];
+    spectra: vscode.Range[][];
     errors: vscode.Range[];
     mixed: vscode.Range[];
 }
@@ -260,7 +260,7 @@ export class IndentSpectra implements vscode.Disposable {
         tabSize: number,
         skipErrors: boolean
     ): IndentationAnalysisResult {
-        const rainbow: vscode.Range[][] = Array.from(
+        const spectra: vscode.Range[][] = Array.from(
             { length: this.decorators.length },
             () => []
         );
@@ -294,7 +294,7 @@ export class IndentSpectra implements vscode.Disposable {
                 ));
             }
 
-            const { visualWidth, blockRanges } = this.calculateRainbowBlocks(
+            const { visualWidth, blockRanges } = this.calculateSpectraBlocks(
                 matchText,
                 startPos.line,
                 startPos.character,
@@ -304,7 +304,7 @@ export class IndentSpectra implements vscode.Disposable {
             // Distribute blocks across decorators
             for (let i = 0; i < blockRanges.length; i++) {
                 const colorIndex = i % this.decorators.length;
-                rainbow[colorIndex].push(blockRanges[i]);
+                spectra[colorIndex].push(blockRanges[i]);
             }
 
             // Mark indentation errors
@@ -319,7 +319,7 @@ export class IndentSpectra implements vscode.Disposable {
             }
         }
 
-        return { rainbow, errors, mixed };
+        return { spectra, errors, mixed };
     }
 
     private applyDecorations(
@@ -328,8 +328,8 @@ export class IndentSpectra implements vscode.Disposable {
     ): void {
         if (this.isDisposed) return;
 
-        // Apply rainbow decorations
-        this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.rainbow[i]));
+        // Apply decorations
+        this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.spectra[i]));
 
         // Apply error and mixed decorations if they exist
         if (this.errorDecorator) {
@@ -404,7 +404,7 @@ export class IndentSpectra implements vscode.Disposable {
         return ignoredLines;
     }
 
-    private calculateRainbowBlocks(
+    private calculateSpectraBlocks(
         text: string,
         line: number,
         startChar: number,
