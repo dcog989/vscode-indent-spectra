@@ -1,62 +1,14 @@
 import * as vscode from 'vscode';
+import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
 
-// Magic Constants
-const DEFAULT_OPACITY_LIGHT = 0.08;
-const DEFAULT_OPACITY_COLORBLIND = 0.2;
-const DEFAULT_OPACITY_AESTHETIC = 0.1;
+// Constants
 const DEFAULT_TAB_SIZE = 4;
-const MAX_IGNORED_LINE_SPAN = 2000; // Safety limit for regex matches
-
-// Palette Definitions
-const PALETTE_UNIVERSAL = [
-    `rgba(255, 215, 0, ${DEFAULT_OPACITY_LIGHT})`,
-    `rgba(65, 105, 225, ${DEFAULT_OPACITY_LIGHT})`,
-    `rgba(255, 105, 180, ${DEFAULT_OPACITY_LIGHT})`,
-    `rgba(0, 255, 255, ${DEFAULT_OPACITY_LIGHT})`
-];
-
-const PALETTE_PROTAN_DEUTERAN = [
-    `rgba(240, 228, 66, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(86, 180, 233, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(230, 159, 0, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(0, 114, 178, ${DEFAULT_OPACITY_COLORBLIND})`
-];
-
-const PALETTE_TRITAN = [
-    `rgba(204, 121, 167, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(0, 158, 115, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(213, 94, 0, ${DEFAULT_OPACITY_COLORBLIND})`,
-    `rgba(240, 240, 240, ${DEFAULT_OPACITY_COLORBLIND})`
-];
-
-const PALETTE_COOL = [
-    `rgba(64, 224, 208, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(100, 149, 237, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(123, 104, 238, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(176, 196, 222, ${DEFAULT_OPACITY_AESTHETIC})`
-];
-
-const PALETTE_WARM = [
-    `rgba(255, 160, 122, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(255, 215, 0, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(255, 127, 80, ${DEFAULT_OPACITY_AESTHETIC})`,
-    `rgba(240, 230, 140, ${DEFAULT_OPACITY_AESTHETIC})`
-];
-
-// Palette management
-type PaletteKey = 'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm';
-const PALETTES: Record<PaletteKey, string[]> = {
-    'universal': PALETTE_UNIVERSAL,
-    'protan-deuteran': PALETTE_PROTAN_DEUTERAN,
-    'tritan': PALETTE_TRITAN,
-    'cool': PALETTE_COOL,
-    'warm': PALETTE_WARM
-};
+const MAX_IGNORED_LINE_SPAN = 2000;
 
 // Type-Safe Configuration
 interface IndentSpectraConfig {
     updateDelay: number;
-    colorPreset: 'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm' | 'custom';
+    colorPreset: PaletteKey | 'custom';
     colors: string[];
     errorColor: string;
     mixColor: string;
@@ -73,35 +25,6 @@ interface IndentationAnalysisResult {
     errors: vscode.Range[];
     mixed: vscode.Range[];
 }
-
-// CSS Named Colors Set (comprehensive list for O(1) lookup)
-const CSS_NAMED_COLORS = new Set([
-    'transparent', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
-    'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown',
-    'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue',
-    'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod',
-    'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen',
-    'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue',
-    'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink',
-    'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite',
-    'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray',
-    'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo',
-    'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon',
-    'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray',
-    'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen',
-    'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
-    'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine',
-    'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue',
-    'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream',
-    'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
-    'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise',
-    'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue',
-    'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
-    'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue',
-    'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal',
-    'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
-    'yellow', 'yellowgreen'
-]);
 
 // Color Validation Helper
 function isValidColor(color: string): boolean {
@@ -127,7 +50,7 @@ function loadConfigurationFromVSCode(): IndentSpectraConfig {
 
     return {
         updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
-        colorPreset: config.get<'universal' | 'protan-deuteran' | 'tritan' | 'cool' | 'warm' | 'custom'>('colorPreset', 'universal'),
+        colorPreset: config.get<PaletteKey | 'custom'>('colorPreset', 'universal'),
         colors: config.get<string[]>('colors', []),
         errorColor: config.get<string>('errorColor', ''),
         mixColor: config.get<string>('mixColor', ''),
@@ -285,12 +208,10 @@ export class IndentSpectra implements vscode.Disposable {
                 }
                 return isValid;
             });
-            // Fallback to universal if no valid custom colors
             return validColors.length > 0 ? validColors : PALETTES.universal;
         }
 
-        // Return preset palette or universal as fallback
-        return PALETTES[config.colorPreset as PaletteKey] || PALETTES.universal;
+        return PALETTES[config.colorPreset] || PALETTES.universal;
     }
 
     public dispose(): void {
