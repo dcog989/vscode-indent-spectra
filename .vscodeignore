@@ -16,6 +16,7 @@
 **/*.map
 **/*.ts
 **/*.tsbuildinfo
+assets/icon-64.png
 assets/icon.svg
 assets/screen-1.png
 node_modules/
