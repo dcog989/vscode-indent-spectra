@@ -1,13 +1,25 @@
 name: CI
+
 on: [push, pull_request]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/checkout@v4
-      - name: Setup dependencies
-        run: |
-          # TODO: Add language-specific setup
-          echo "TODO: Configure CI for web"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Compile TypeScript
+        run: npm run compile
+      
       - name: Run tests
-        run: echo "TODO: Add test command"
+        run: npm test
