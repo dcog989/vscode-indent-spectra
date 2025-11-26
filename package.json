@@ -1,8 +1,8 @@
 {
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
-    "description": "Colorizes indentation. Modern architecture. Fast. Color theory-based palettes. Like 'indent-rainbow' but better.",
-    "version": "1.2.2",
+    "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
+    "version": "1.2.5",
     "publisher": "dcog989",
     "icon": "assets/icon.png",
     "repository": {
@@ -112,7 +112,7 @@
                     "default": [
                         "markdown"
                     ],
-                    "description": "Languages where indentation errors should NOT be highlighted, but rainbow colorization still shows."
+                    "description": "Languages where indentation errors should NOT be highlighted, but colorization still shows."
                 }
             }
         }
@@ -122,7 +122,7 @@
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "check-types": "tsc --noEmit",
-        "test": "node ./out/test/runTest.js",
+        "test": "npm run compile && node ./out/test/runTest.js",
         "clean": "npm run check-types && node -e \"require('fs').rmSync('dist', {recursive:true, force:true}); require('fs').rmSync('out', {recursive:true, force:true}); require('fs').rmSync('.vscode-test', {recursive:true, force:true});\""
     },
     "devDependencies": {
