@@ -215,13 +215,20 @@ export class IndentSpectra implements vscode.Disposable {
         this.compiledIgnorePatterns = patternStrings
             .map(pattern => {
                 try {
+                    let source = pattern;
+                    let flags = 'g'; // Default to global for loop reuse
+
                     // Try to parse as /pattern/flags format
                     const match = pattern.match(/^\/(.+)\/([gimsuy]*)$/);
                     if (match) {
-                        return new RegExp(match[1], match[2]);
+                        source = match[1];
+                        flags = match[2];
+                        if (!flags.includes('g')) {
+                            flags += 'g';
+                        }
                     }
-                    // Otherwise treat as plain pattern
-                    return new RegExp(pattern);
+
+                    return new RegExp(source, flags);
                 } catch (e) {
                     console.warn(`[IndentSpectra] Invalid regex pattern: ${pattern}`, e);
                     return null;
@@ -364,15 +371,20 @@ export class IndentSpectra implements vscode.Disposable {
             const hasSpaces = matchText.includes(' ');
 
             if (hasTabs && hasSpaces && this.mixDecorator) {
-                const endPos = doc.positionAt(matchIndex + matchText.length);
-                mixed.push(new vscode.Range(startPos, endPos));
+                // Optimization: Use coordinate arithmetic instead of positionAt
+                mixed.push(new vscode.Range(
+                    startPos.line,
+                    startPos.character,
+                    startPos.line,
+                    startPos.character + matchText.length
+                ));
             }
 
             const { visualWidth, blockRanges } = this.calculateRainbowBlocks(
                 matchText,
-                matchIndex,
-                tabSize,
-                doc
+                startPos.line,
+                startPos.character,
+                tabSize
             );
 
             // Distribute blocks across decorators
@@ -383,8 +395,13 @@ export class IndentSpectra implements vscode.Disposable {
 
             // Mark indentation errors
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
-                const endPos = doc.positionAt(matchIndex + matchText.length);
-                errors.push(new vscode.Range(startPos, endPos));
+                // Optimization: Use coordinate arithmetic
+                errors.push(new vscode.Range(
+                    startPos.line,
+                    startPos.character,
+                    startPos.line,
+                    startPos.character + matchText.length
+                ));
             }
         }
 
@@ -454,9 +471,8 @@ export class IndentSpectra implements vscode.Disposable {
             return ignoredLines;
         }
 
-        for (const pattern of this.compiledIgnorePatterns) {
-            // Create fresh regex for each iteration to avoid state issues
-            const regex = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+        for (const regex of this.compiledIgnorePatterns) {
+            regex.lastIndex = 0; // Reset state for reuse
             let match: RegExpExecArray | null;
 
             while ((match = regex.exec(text)) !== null) {
@@ -485,9 +501,9 @@ export class IndentSpectra implements vscode.Disposable {
 
     private calculateRainbowBlocks(
         text: string,
-        startIndex: number,
-        tabSize: number,
-        doc: vscode.TextDocument
+        line: number,
+        startChar: number,
+        tabSize: number
     ): { visualWidth: number; blockRanges: vscode.Range[] } {
         const blockRanges: vscode.Range[] = [];
         let visualWidth = 0;
@@ -508,19 +524,24 @@ export class IndentSpectra implements vscode.Disposable {
             if (visualWidth % tabSize === 0) {
                 const blockEndCharIndex = i + 1;
 
-                const startPos = doc.positionAt(startIndex + currentBlockStartCharIndex);
-                const endPos = doc.positionAt(startIndex + blockEndCharIndex);
-
-                blockRanges.push(new vscode.Range(startPos, endPos));
+                blockRanges.push(new vscode.Range(
+                    line,
+                    startChar + currentBlockStartCharIndex,
+                    line,
+                    startChar + blockEndCharIndex
+                ));
                 currentBlockStartCharIndex = blockEndCharIndex;
             }
         }
 
         // Handle incomplete final block (remainder)
         if (currentBlockStartCharIndex < text.length) {
-            const startPos = doc.positionAt(startIndex + currentBlockStartCharIndex);
-            const endPos = doc.positionAt(startIndex + text.length);
-            blockRanges.push(new vscode.Range(startPos, endPos));
+            blockRanges.push(new vscode.Range(
+                line,
+                startChar + currentBlockStartCharIndex,
+                line,
+                startChar + text.length
+            ));
         }
 
         return { visualWidth, blockRanges };
