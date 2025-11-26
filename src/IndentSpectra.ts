@@ -4,7 +4,6 @@ import * as vscode from 'vscode';
 const DEFAULT_OPACITY_LIGHT = 0.08;
 const DEFAULT_OPACITY_COLORBLIND = 0.2;
 const DEFAULT_OPACITY_AESTHETIC = 0.1;
-const TAB_SIZE_CACHE_TTL = 5000; // 5 seconds
 const DEFAULT_TAB_SIZE = 4;
 const MAX_IGNORED_LINE_SPAN = 2000; // Safety limit for regex matches
 
@@ -159,7 +158,7 @@ export class IndentSpectra implements vscode.Disposable {
     private isDisposed = false;
 
     // Regex pattern - compiled once, reused
-    private readonly indentRegex = /^[\t ]+(?=\S)/gm;
+    private readonly indentRegex = /^[\t ]+/gm;
 
     // Cache keys to detect when decorators need recreation
     private decoratorCacheKey: string | null = null;
@@ -174,7 +173,6 @@ export class IndentSpectra implements vscode.Disposable {
 
         const newConfig = loadConfigurationFromVSCode();
         this.config = newConfig;
-        this.tabSizeCache.clear();
 
         // Recompile patterns if they changed
         this.compileIgnorePatterns(newConfig.ignorePatterns);
@@ -302,7 +300,6 @@ export class IndentSpectra implements vscode.Disposable {
             clearTimeout(this.timeout);
             this.timeout = null;
         }
-        this.tabSizeCache.clear();
     }
 
     private disposeDecorators(): void {
@@ -427,16 +424,7 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private getTabSize(editor: vscode.TextEditor): number {
-        const docUri = editor.document.uri.toString();
-        const cached = this.tabSizeCache.get(docUri);
-
-        if (cached && Date.now() - cached.timestamp < TAB_SIZE_CACHE_TTL) {
-            return cached.value;
-        }
-
-        const tabSize = this.resolveTabSize(editor);
-        this.tabSizeCache.set(docUri, { value: tabSize, timestamp: Date.now() });
-        return tabSize;
+        return this.resolveTabSize(editor);
     }
 
     private resolveTabSize(editor: vscode.TextEditor): number {
