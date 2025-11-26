@@ -1,4 +1,4 @@
-# Indent Spectra
+# ![Indent Spectra logo](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/icon.png) Indent Spectra
 
 *Indent Spectra* is an indentation highlighter for Visual Studio Code. It colorizes indentation levels to make code structure instantly readable.
 

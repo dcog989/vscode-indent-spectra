@@ -4,29 +4,34 @@ import { IndentSpectra } from './IndentSpectra';
 let indentSpectra: IndentSpectra | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-    // Lazy instantiation
+    // Initialize extension
     indentSpectra = new IndentSpectra();
 
     context.subscriptions.push(
         // 1. When switching tabs
         vscode.window.onDidChangeActiveTextEditor(
-            (editor) => editor && indentSpectra?.triggerUpdate()
+            (editor) => {
+                if (editor) {
+                    indentSpectra?.triggerUpdate();
+                }
+            }
         ),
 
         // 2. When typing/pasting content
         vscode.workspace.onDidChangeTextDocument(
             (event) => {
-                if (event.document === vscode.window.activeTextEditor?.document) {
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor && event.document === activeEditor.document) {
                     indentSpectra?.triggerUpdate();
                 }
             }
         ),
 
         // 3. When the language changes (e.g. auto-detect after paste)
-        // VS Code fires onDidOpenTextDocument when languageId updates
         vscode.workspace.onDidOpenTextDocument(
             (doc) => {
-                if (doc === vscode.window.activeTextEditor?.document) {
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor && doc === activeEditor.document) {
                     indentSpectra?.triggerUpdate();
                 }
             }
@@ -44,8 +49,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         indentSpectra
     );
 
-    // Initial render
-    indentSpectra.triggerUpdate();
+    // Initial render for currently active editor
+    if (vscode.window.activeTextEditor) {
+        indentSpectra.triggerUpdate();
+    }
 }
 
 export function deactivate(): void {

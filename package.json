@@ -2,7 +2,7 @@
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
     "description": "Colorizes indentation. Modern architecture. Fast. Color theory-based palettes. Like 'indent-rainbow' but better.",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "publisher": "dcog989",
     "icon": "assets/icon.png",
     "repository": {
@@ -39,6 +39,7 @@
                 "indentSpectra.updateDelay": {
                     "type": "integer",
                     "default": 100,
+                    "minimum": 10,
                     "description": "Delay in ms before updating decorations (debouncing)."
                 },
                 "indentSpectra.colorPreset": {
@@ -62,7 +63,7 @@
                         "rgba(255, 105, 180, 0.1)",
                         "rgba(0, 255, 255, 0.1)"
                     ],
-                    "description": "Custom colors array. Only used when 'colorPreset' is set to 'custom'."
+                    "description": "Custom colors array. Only used when 'colorPreset' is set to 'custom'. Supports hex (#RGB, #RRGGBB, #RRGGBBAA), rgb/rgba, and CSS named colors."
                 },
                 "indentSpectra.errorColor": {
                     "type": "string",
@@ -77,10 +78,10 @@
                 "indentSpectra.ignorePatterns": {
                     "type": "array",
                     "default": [
-                        "/[ \t]* [*]/g",
-                        "/[ \t]+[/]{2}/g"
+                        "/[ \t]*[*]/g",
+                        "/[ \t]+\\/\\//g"
                     ],
-                    "description": "Regex patterns to ignore (e.g. block comments)."
+                    "description": "Regex patterns to ignore (e.g., block comments). Use /pattern/flags format or plain pattern strings."
                 },
                 "indentSpectra.ignoredLanguages": {
                     "type": "array",
@@ -88,7 +89,7 @@
                         "plaintext",
                         "markdown"
                     ],
-                    "description": "Languages to disable the extension for."
+                    "description": "Languages to disable the extension for completely."
                 },
                 "indentSpectra.indicatorStyle": {
                     "type": "string",
@@ -97,19 +98,21 @@
                         "light"
                     ],
                     "default": "classic",
-                    "description": "Render style: 'classic' for background block, 'light' for thin lines."
+                    "description": "Render style: 'classic' for background block, 'light' for thin vertical lines."
                 },
                 "indentSpectra.lightIndicatorWidth": {
                     "type": "number",
                     "default": 1,
-                    "description": "Width of the line in pixels when using 'light' mode."
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Width of the line in pixels when using 'light' indicator style."
                 },
                 "indentSpectra.ignoreErrorLanguages": {
                     "type": "array",
                     "default": [
                         "markdown"
                     ],
-                    "description": "Languages where indentation errors should NOT be highlighted, but rainbows still show."
+                    "description": "Languages where indentation errors should NOT be highlighted, but rainbow colorization still shows."
                 }
             }
         }

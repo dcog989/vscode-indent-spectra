@@ -6,6 +6,7 @@ const DEFAULT_OPACITY_COLORBLIND = 0.2;
 const DEFAULT_OPACITY_AESTHETIC = 0.1;
 const TAB_SIZE_CACHE_TTL = 5000; // 5 seconds
 const DEFAULT_TAB_SIZE = 4;
+const MAX_IGNORED_LINE_SPAN = 2000; // Safety limit for regex matches
 
 // Palette Definitions
 const PALETTE_UNIVERSAL = [
@@ -74,6 +75,35 @@ interface IndentationAnalysisResult {
     mixed: vscode.Range[];
 }
 
+// CSS Named Colors Set (comprehensive list for O(1) lookup)
+const CSS_NAMED_COLORS = new Set([
+    'transparent', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
+    'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown',
+    'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue',
+    'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod',
+    'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen',
+    'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue',
+    'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink',
+    'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite',
+    'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray',
+    'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo',
+    'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon',
+    'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray',
+    'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen',
+    'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
+    'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine',
+    'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue',
+    'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream',
+    'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
+    'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise',
+    'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue',
+    'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
+    'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue',
+    'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal',
+    'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
+    'yellow', 'yellowgreen'
+]);
+
 // Color Validation Helper
 function isValidColor(color: string): boolean {
     if (!color || typeof color !== 'string') return false;
@@ -85,45 +115,12 @@ function isValidColor(color: string): boolean {
         return true;
     }
 
-    // Check for rgba/rgb format with stricter validation
-    // Matches: rgb(r, g, b) or rgba(r, g, b, a)
-    // Values can be numbers or percentages
-    const rgbPattern = /^rgba?\(\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*(?:,\s*(0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/;
-    if (rgbPattern.test(trimmed)) {
+    // Check for rgba/rgb format
+    if (/^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/.test(trimmed)) {
         return true;
     }
 
-    // CSS named colors (subset of common ones for performance, or full list if needed)
-    // Using a comprehensive Set for O(1) lookup
-    const namedColors = new Set([
-        'transparent', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
-        'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown',
-        'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue',
-        'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod',
-        'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen',
-        'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue',
-        'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink',
-        'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite',
-        'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray',
-        'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo',
-        'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon',
-        'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray',
-        'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen',
-        'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
-        'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine',
-        'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue',
-        'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream',
-        'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
-        'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise',
-        'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue',
-        'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
-        'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue',
-        'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal',
-        'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
-        'yellow', 'yellowgreen'
-    ]);
-
-    return namedColors.has(trimmed);
+    return CSS_NAMED_COLORS.has(trimmed);
 }
 
 function loadConfigurationFromVSCode(): IndentSpectraConfig {
@@ -139,7 +136,7 @@ function loadConfigurationFromVSCode(): IndentSpectraConfig {
         ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
         ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
         indicatorStyle: config.get<'classic' | 'light'>('indicatorStyle', 'classic'),
-        lightIndicatorWidth: config.get<number>('lightIndicatorWidth', 1)
+        lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1))
     };
 }
 
@@ -153,31 +150,23 @@ export class IndentSpectra implements vscode.Disposable {
 
     // Cache for ignore patterns (compiled once)
     private compiledIgnorePatterns: RegExp[] = [];
-    private combinedIgnorePattern: RegExp | null = null;
 
     // Cache for tab size per document
     private tabSizeCache = new Map<string, { value: number; timestamp: number }>();
 
     // Runtime State
-    private timeout: ReturnType<typeof setTimeout> | null = null;
+    private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
 
-    // Regex pattern with lookahead optimization
+    // Regex pattern - compiled once, reused
     private readonly indentRegex = /^[\t ]+(?=\S)/gm;
 
-    // Cache for decorator options to avoid recreating
-    private lastColorPreset: string | null = null;
-    private lastIndicatorStyle: 'classic' | 'light' | null = null;
-    private lastLightIndicatorWidth: number | null = null;
+    // Cache keys to detect when decorators need recreation
+    private decoratorCacheKey: string | null = null;
 
     constructor() {
-        // Initialize default config before loading
         this.config = loadConfigurationFromVSCode();
         this.reloadConfig();
-    }
-
-    private shouldSkipErrorHighlighting(languageId: string): boolean {
-        return this.config.ignoreErrorLanguages.has(languageId);
     }
 
     public reloadConfig(): void {
@@ -190,18 +179,12 @@ export class IndentSpectra implements vscode.Disposable {
         // Recompile patterns if they changed
         this.compileIgnorePatterns(newConfig.ignorePatterns);
 
-        // Only dispose and recreate decorators if appearance settings changed
-        const styleChanged =
-            newConfig.colorPreset !== this.lastColorPreset ||
-            newConfig.indicatorStyle !== this.lastIndicatorStyle ||
-            newConfig.lightIndicatorWidth !== this.lastLightIndicatorWidth;
-
-        if (styleChanged) {
+        // Only recreate decorators if visual settings changed
+        const newCacheKey = this.computeDecoratorCacheKey(newConfig);
+        if (newCacheKey !== this.decoratorCacheKey) {
             this.disposeDecorators();
             this.initializeDecorators(newConfig);
-            this.lastColorPreset = newConfig.colorPreset;
-            this.lastIndicatorStyle = newConfig.indicatorStyle;
-            this.lastLightIndicatorWidth = newConfig.lightIndicatorWidth;
+            this.decoratorCacheKey = newCacheKey;
         }
 
         if (vscode.window.activeTextEditor) {
@@ -209,39 +192,42 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
+    private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
+        // Create a unique key based on appearance settings
+        const colors = this.resolveColorPalette(config);
+        return JSON.stringify({
+            preset: config.colorPreset,
+            colors: colors,
+            errorColor: config.errorColor,
+            mixColor: config.mixColor,
+            style: config.indicatorStyle,
+            width: config.lightIndicatorWidth
+        });
+    }
+
     private compileIgnorePatterns(patternStrings: string[]): void {
         this.compiledIgnorePatterns = [];
-        this.combinedIgnorePattern = null;
 
         if (patternStrings.length === 0) {
             return;
         }
 
-        // Compile individual patterns
         this.compiledIgnorePatterns = patternStrings
             .map(pattern => {
                 try {
-                    // Check for start/end delimiters to properly parse flags
-                    const parts = pattern.match(/^\/(.*?)\/([gimsvy]*)$/);
-                    return parts ? new RegExp(parts[1], parts[2]) : new RegExp(pattern);
+                    // Try to parse as /pattern/flags format
+                    const match = pattern.match(/^\/(.+)\/([gimsuy]*)$/);
+                    if (match) {
+                        return new RegExp(match[1], match[2]);
+                    }
+                    // Otherwise treat as plain pattern
+                    return new RegExp(pattern);
                 } catch (e) {
-                    console.warn(`[IndentSpectra] Invalid Regex: ${pattern}`, e);
+                    console.warn(`[IndentSpectra] Invalid regex pattern: ${pattern}`, e);
                     return null;
                 }
             })
             .filter((r): r is RegExp => r !== null);
-
-        // Create combined pattern for single-pass matching
-        if (this.compiledIgnorePatterns.length > 0) {
-            try {
-                const combinedSource = this.compiledIgnorePatterns
-                    .map(p => `(?:${p.source})`) // Non-capturing group for safety
-                    .join('|');
-                this.combinedIgnorePattern = new RegExp(combinedSource, 'gm');
-            } catch (e) {
-                console.warn('[IndentSpectra] Error creating combined pattern', e);
-            }
-        }
     }
 
     private createDecoratorOptions(
@@ -286,23 +272,20 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private resolveColorPalette(config: IndentSpectraConfig): string[] {
-        let colors: string[] = [];
-
         if (config.colorPreset === 'custom') {
-            colors = config.colors.filter(color => {
-                if (!isValidColor(color)) {
+            const validColors = config.colors.filter(color => {
+                const isValid = isValidColor(color);
+                if (!isValid) {
                     console.warn(`[IndentSpectra] Invalid color format: ${color}`);
-                    return false;
                 }
-                return true;
+                return isValid;
             });
-        } else if (config.colorPreset in PALETTES) {
-            colors = PALETTES[config.colorPreset as PaletteKey];
-        } else {
-            colors = PALETTES.universal;
+            // Fallback to universal if no valid custom colors
+            return validColors.length > 0 ? validColors : PALETTES.universal;
         }
 
-        return colors.length > 0 ? colors : PALETTES.universal;
+        // Return preset palette or universal as fallback
+        return PALETTES[config.colorPreset as PaletteKey] || PALETTES.universal;
     }
 
     public dispose(): void {
@@ -310,6 +293,7 @@ export class IndentSpectra implements vscode.Disposable {
         this.disposeDecorators();
         if (this.timeout) {
             clearTimeout(this.timeout);
+            this.timeout = null;
         }
         this.tabSizeCache.clear();
     }
@@ -318,7 +302,9 @@ export class IndentSpectra implements vscode.Disposable {
         this.decorators.forEach(d => d.dispose());
         this.decorators = [];
         this.errorDecorator?.dispose();
+        this.errorDecorator = undefined;
         this.mixDecorator?.dispose();
+        this.mixDecorator = undefined;
     }
 
     public triggerUpdate(): void {
@@ -341,7 +327,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         const text = doc.getText();
         const tabSize = this.getTabSize(editor);
-        const skipErrors = this.shouldSkipErrorHighlighting(doc.languageId);
+        const skipErrors = this.config.ignoreErrorLanguages.has(doc.languageId);
 
         const analysisResult = this.analyzeIndentation(text, doc, tabSize, skipErrors);
         this.applyDecorations(editor, analysisResult);
@@ -362,6 +348,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         const ignoredLines = this.identifyIgnoredLines(text, doc);
 
+        // Reset regex before use
         this.indentRegex.lastIndex = 0;
         let match: RegExpExecArray | null;
 
@@ -388,11 +375,13 @@ export class IndentSpectra implements vscode.Disposable {
                 doc
             );
 
+            // Distribute blocks across decorators
             for (let i = 0; i < blockRanges.length; i++) {
                 const colorIndex = i % this.decorators.length;
                 rainbow[colorIndex].push(blockRanges[i]);
             }
 
+            // Mark indentation errors
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
                 const endPos = doc.positionAt(matchIndex + matchText.length);
                 errors.push(new vscode.Range(startPos, endPos));
@@ -408,9 +397,16 @@ export class IndentSpectra implements vscode.Disposable {
     ): void {
         if (this.isDisposed) return;
 
+        // Apply rainbow decorations
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.rainbow[i]));
-        if (this.errorDecorator) editor.setDecorations(this.errorDecorator, result.errors);
-        if (this.mixDecorator) editor.setDecorations(this.mixDecorator, result.mixed);
+
+        // Apply error and mixed decorations if they exist
+        if (this.errorDecorator) {
+            editor.setDecorations(this.errorDecorator, result.errors);
+        }
+        if (this.mixDecorator) {
+            editor.setDecorations(this.mixDecorator, result.mixed);
+        }
     }
 
     private getTabSize(editor: vscode.TextEditor): number {
@@ -427,19 +423,24 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private resolveTabSize(editor: vscode.TextEditor): number {
-        const tabSizeRaw = editor.options.tabSize;
-        if (typeof tabSizeRaw === 'number' && tabSizeRaw > 0) {
-            return tabSizeRaw;
+        const tabSizeOption = editor.options.tabSize;
+
+        // Handle number type
+        if (typeof tabSizeOption === 'number' && tabSizeOption > 0) {
+            return tabSizeOption;
         }
-        if (typeof tabSizeRaw === 'string') {
-            const parsed = parseInt(tabSizeRaw, 10);
+
+        // Handle string type (parse to number)
+        if (typeof tabSizeOption === 'string') {
+            const parsed = parseInt(tabSizeOption, 10);
             if (!isNaN(parsed) && parsed > 0) {
                 return parsed;
             }
         }
 
+        // Fallback to global setting
         const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
-        if (globalTabSize && globalTabSize > 0) {
+        if (typeof globalTabSize === 'number' && globalTabSize > 0) {
             return globalTabSize;
         }
 
@@ -449,33 +450,32 @@ export class IndentSpectra implements vscode.Disposable {
     private identifyIgnoredLines(text: string, doc: vscode.TextDocument): Set<number> {
         const ignoredLines = new Set<number>();
 
-        // If we have no patterns, return early
-        if (!this.combinedIgnorePattern && this.compiledIgnorePatterns.length === 0) {
+        if (this.compiledIgnorePatterns.length === 0) {
             return ignoredLines;
         }
 
-        const patterns = this.combinedIgnorePattern
-            ? [this.combinedIgnorePattern]
-            : this.compiledIgnorePatterns;
-
-        for (const pattern of patterns) {
-            pattern.lastIndex = 0;
+        for (const pattern of this.compiledIgnorePatterns) {
+            // Create fresh regex for each iteration to avoid state issues
+            const regex = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
             let match: RegExpExecArray | null;
 
-            while ((match = pattern.exec(text)) !== null) {
+            while ((match = regex.exec(text)) !== null) {
                 const startLine = doc.positionAt(match.index).line;
                 const endLine = doc.positionAt(match.index + match[0].length).line;
 
-                // Safety: If a regex matches the whole file (or a massive block),
-                // iterating every line is expensive. Cap it to avoid freezing UI.
-                // If it's larger than 2000 lines, we skip precise line marking
-                // for this specific match to preserve performance.
-                if (endLine - startLine > 2000) {
+                // Safety: prevent freezing on massive matches
+                if (endLine - startLine > MAX_IGNORED_LINE_SPAN) {
+                    console.warn(`[IndentSpectra] Skipping large ignored block (${endLine - startLine} lines)`);
                     continue;
                 }
 
                 for (let i = startLine; i <= endLine; i++) {
                     ignoredLines.add(i);
+                }
+
+                // Prevent infinite loops on zero-width matches
+                if (match[0].length === 0) {
+                    regex.lastIndex++;
                 }
             }
         }
@@ -489,7 +489,6 @@ export class IndentSpectra implements vscode.Disposable {
         tabSize: number,
         doc: vscode.TextDocument
     ): { visualWidth: number; blockRanges: vscode.Range[] } {
-
         const blockRanges: vscode.Range[] = [];
         let visualWidth = 0;
         let currentBlockStartCharIndex = 0;
@@ -498,16 +497,15 @@ export class IndentSpectra implements vscode.Disposable {
             const char = text[i];
             const isTab = char === '\t';
 
-            // Explicitly handle visual width.
-            // Although regex usually ensures only \t and ' ', we enforce 1 for anything else.
+            // Calculate visual width for this character
             const charVisualWidth = isTab
                 ? tabSize - (visualWidth % tabSize)
                 : 1;
 
             visualWidth += charVisualWidth;
 
-            // When we complete a "tabSize" chunk visually, mark a block
-            if (visualWidth > 0 && visualWidth % tabSize === 0) {
+            // Complete a block when we reach a multiple of tabSize
+            if (visualWidth % tabSize === 0) {
                 const blockEndCharIndex = i + 1;
 
                 const startPos = doc.positionAt(startIndex + currentBlockStartCharIndex);

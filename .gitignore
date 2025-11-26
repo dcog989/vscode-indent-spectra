@@ -1,4 +1,5 @@
 # Project Specific
+.assets/
 .docs/
 .scripts/
 .tests/
