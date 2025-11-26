@@ -19,7 +19,7 @@ It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern]
 
 ## Color Presets
 
-Choose from color palettes designed from first principles using color theory frameworks Okabe-Ito, Temperature Alternation, and Analogous Harmony.
+Choose from color palettes designed from first principles using color theory frameworks [Okabe-Ito](https://easystats.github.io/see/reference/scale_color_okabeito.html), [Temperature Alternation](https://en.wikipedia.org/wiki/Color_theory#Warm_vis-_cool_colors), and [Analogous Harmony](https://www.colorpsychology.org/analogous-colors/).
 
 | Preset                  | Description                                                           |
 | :---------------------- | :-------------------------------------------------------------------- |
