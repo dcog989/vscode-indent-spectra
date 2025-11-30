@@ -40,8 +40,8 @@ suite('Performance Benchmark Suite', () => {
         const start = performance.now();
 
         // Force synchronous update (bypassing debounce)
-        // Cast to any to access private 'update' method for raw benchmarking
-        (indentSpectra as any).update();
+        // Cast to any to access private 'updateAll' method for raw benchmarking
+        (indentSpectra as any).updateAll();
 
         const end = performance.now();
         const duration = end - start;
@@ -67,7 +67,7 @@ suite('Performance Benchmark Suite', () => {
         await vscode.window.showTextDocument(doc);
 
         const start = performance.now();
-        (indentSpectra as any).update();
+        (indentSpectra as any).updateAll();
         const end = performance.now();
         const duration = end - start;
 

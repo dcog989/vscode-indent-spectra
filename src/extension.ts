@@ -8,20 +8,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     indentSpectra = new IndentSpectra();
 
     context.subscriptions.push(
-        // 1. When switching tabs
+        // 1. When switching tabs or focus
         vscode.window.onDidChangeActiveTextEditor(
-            (editor) => {
-                if (editor) {
-                    indentSpectra?.triggerUpdate();
-                }
+            () => {
+                indentSpectra?.triggerUpdate();
             }
         ),
 
         // 2. When typing/pasting content
         vscode.workspace.onDidChangeTextDocument(
             (event) => {
-                const activeEditor = vscode.window.activeTextEditor;
-                if (activeEditor && event.document === activeEditor.document) {
+                // Trigger update if the changed document is visible in any editor (supports split view)
+                if (vscode.window.visibleTextEditors.some(editor => editor.document === event.document)) {
                     indentSpectra?.triggerUpdate();
                 }
             }
@@ -30,8 +28,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // 3. When the language changes (e.g. auto-detect after paste)
         vscode.workspace.onDidOpenTextDocument(
             (doc) => {
-                const activeEditor = vscode.window.activeTextEditor;
-                if (activeEditor && doc === activeEditor.document) {
+                if (vscode.window.visibleTextEditors.some(editor => editor.document === doc)) {
                     indentSpectra?.triggerUpdate();
                 }
             }
@@ -49,10 +46,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         indentSpectra
     );
 
-    // Initial render for currently active editor
-    if (vscode.window.activeTextEditor) {
-        indentSpectra.triggerUpdate();
-    }
+    // Initial render for all visible editors
+    indentSpectra.triggerUpdate();
 }
 
 export function deactivate(): void {

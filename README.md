@@ -69,7 +69,7 @@ Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName
 
 ## Comparison with Indent Rainbow
 
-For starters, it's lightweight: *Indent Spectra* install file = 18 KB, *Indent Rainbow* = 8.45 MB. Not a typo: *18 KB vs 8,450 KB*.
+For starters, it's lightweight: *Indent Spectra* install file = 18 KB, *Indent Rainbow* = 179 KB.
 
 ### 1. Performance, Efficiency
 
@@ -81,7 +81,7 @@ The rendering engine was rewritten from scratch to handle large files without sl
 
 ### 2. Accessibility, Color Theory
 
-*Rainbow* uses a standard spectrum where adjacent colors (like Green and Cyan) blend together for many people.
+*Rainbow* uses a standard spectrum where adjacent colors (like Green and Cyan) blend together for many people. *Spectra* uses:
 
 - **Interleaved Contrast:** Instead of a gradient, *Spectra* alternates **Warm** (Gold, Pink) and **Cool** (Blue, Cyan) colors. This maximizes the "visual distance" between indentation levels.
 - **Accessibility Presets:** Includes built-in palettes designed for **Color Vision Deficiencies** ([Protanopia, Deuteranopia, and Tritanopia](https://www.colourblindawareness.org/colour-blindness/types-of-colour-blindness/)) based on the [Okabe-Ito standard](https://easystats.github.io/see/reference/scale_color_okabeito.html).
@@ -98,7 +98,7 @@ The rendering engine was rewritten from scratch to handle large files without sl
 
 ### Summary Table
 
-| Feature          | Indent Rainbow (Original)       | Indent Spectra (New)               |
+| Feature          | Indent Rainbow                  | Indent Spectra                     |
 | :--------------- | :------------------------------ | :--------------------------------- |
 | **Complexity**   | O(N²) (Slower on large files)   | **O(N) (Linear / Fast)**           |
 | **Lookups**      | Array Iteration                 | **Set / Hash Map**                 |
