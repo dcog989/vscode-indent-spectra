@@ -3,8 +3,6 @@ import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
 
 const DEFAULT_TAB_SIZE = 4;
 const MAX_IGNORED_LINE_SPAN = 2000;
-
-// Pre-compiled Regex Constants for Performance
 const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const RGBA_COLOR_REGEX = /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
@@ -27,6 +25,14 @@ interface IndentationAnalysisResult {
     mixed: vscode.Range[];
 }
 
+interface LineAnalysis {
+    blocks: number[]; // End character indices of each indent block
+    visualWidth: number;
+    isMixed: boolean;
+    isError: boolean;
+    isIgnored: boolean;
+}
+
 function isValidColor(color: string): boolean {
     if (!color || typeof color !== 'string') return false;
     const trimmed = color.trim();
@@ -35,7 +41,6 @@ function isValidColor(color: string): boolean {
 
 function loadConfigurationFromVSCode(): IndentSpectraConfig {
     const config = vscode.workspace.getConfiguration('indentSpectra');
-
     return {
         updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
         colorPreset: config.get<PaletteKey | 'custom'>('colorPreset', 'universal'),
@@ -54,15 +59,13 @@ export class IndentSpectra implements vscode.Disposable {
     private decorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
-
     private config: IndentSpectraConfig;
-
     private compiledIgnorePatterns: RegExp[] = [];
-
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
-
     private decoratorCacheKey: string | null = null;
+
+    private lineCache = new Map<string, (LineAnalysis | undefined)[]>();
 
     constructor() {
         this.config = loadConfigurationFromVSCode();
@@ -71,19 +74,17 @@ export class IndentSpectra implements vscode.Disposable {
 
     public reloadConfig(): void {
         if (this.isDisposed) return;
+        this.config = loadConfigurationFromVSCode();
+        this.compileIgnorePatterns(this.config.ignorePatterns);
 
-        const newConfig = loadConfigurationFromVSCode();
-        this.config = newConfig;
-
-        this.compileIgnorePatterns(newConfig.ignorePatterns);
-
-        const newCacheKey = this.computeDecoratorCacheKey(newConfig);
+        const newCacheKey = this.computeDecoratorCacheKey(this.config);
         if (newCacheKey !== this.decoratorCacheKey) {
             this.disposeDecorators();
-            this.initializeDecorators(newConfig);
+            this.initializeDecorators(this.config);
             this.decoratorCacheKey = newCacheKey;
         }
 
+        this.lineCache.clear();
         this.triggerUpdate();
     }
 
@@ -91,7 +92,7 @@ export class IndentSpectra implements vscode.Disposable {
         const colors = this.resolveColorPalette(config);
         return JSON.stringify({
             preset: config.colorPreset,
-            colors: colors,
+            colors,
             errorColor: config.errorColor,
             mixColor: config.mixColor,
             style: config.indicatorStyle,
@@ -105,17 +106,14 @@ export class IndentSpectra implements vscode.Disposable {
                 try {
                     let source = pattern;
                     let existingFlags = '';
-
                     const match = pattern.match(/^\/(.+)\/([a-z]*)$/i);
                     if (match) {
                         source = match[1];
                         existingFlags = match[2];
                     }
-
                     const flags = new Set(existingFlags.toLowerCase().split(''));
                     flags.add('g');
                     flags.add('m');
-
                     return new RegExp(source, Array.from(flags).join(''));
                 } catch (e) {
                     console.warn(`[IndentSpectra] Invalid pattern: ${pattern}`, e);
@@ -125,69 +123,37 @@ export class IndentSpectra implements vscode.Disposable {
             .filter((r): r is RegExp => r !== null);
     }
 
-    private createDecoratorOptions(
-        color: string,
-        style: 'classic' | 'light',
-        width: number
-    ): vscode.DecorationRenderOptions {
-        if (style === 'light') {
-            return {
-                borderWidth: `0 0 0 ${width}px`,
-                borderStyle: 'solid',
-                borderColor: color
-            };
-        }
-        return {
-            backgroundColor: color
-        };
-    }
-
     private initializeDecorators(config: IndentSpectraConfig): void {
         if (this.isDisposed) return;
-
         const colors = this.resolveColorPalette(config);
+        const options = (color: string): vscode.DecorationRenderOptions =>
+            config.indicatorStyle === 'light'
+                ? { borderWidth: `0 0 0 ${config.lightIndicatorWidth}px`, borderStyle: 'solid', borderColor: color }
+                : { backgroundColor: color };
 
-        this.decorators = colors.map(color =>
-            vscode.window.createTextEditorDecorationType(
-                this.createDecoratorOptions(color, config.indicatorStyle, config.lightIndicatorWidth)
-            )
-        );
+        this.decorators = colors.map(color => vscode.window.createTextEditorDecorationType(options(color)));
 
         if (config.errorColor && isValidColor(config.errorColor)) {
-            this.errorDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.errorColor
-            });
+            this.errorDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.errorColor });
         }
-
         if (config.mixColor && isValidColor(config.mixColor)) {
-            this.mixDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.mixColor
-            });
+            this.mixDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.mixColor });
         }
     }
 
     private resolveColorPalette(config: IndentSpectraConfig): string[] {
         if (config.colorPreset === 'custom') {
-            const validColors = config.colors.filter(color => {
-                const isValid = isValidColor(color);
-                if (!isValid) {
-                    console.warn(`[IndentSpectra] Invalid color format: ${color}`);
-                }
-                return isValid;
-            });
+            const validColors = config.colors.filter(isValidColor);
             return validColors.length > 0 ? validColors : PALETTES.universal;
         }
-
         return PALETTES[config.colorPreset] || PALETTES.universal;
     }
 
     public dispose(): void {
         this.isDisposed = true;
         this.disposeDecorators();
-        if (this.timeout) {
-            clearTimeout(this.timeout);
-            this.timeout = null;
-        }
+        if (this.timeout) clearTimeout(this.timeout);
+        this.lineCache.clear();
     }
 
     private disposeDecorators(): void {
@@ -199,18 +165,34 @@ export class IndentSpectra implements vscode.Disposable {
         this.mixDecorator = undefined;
     }
 
-    public triggerUpdate(): void {
+    public triggerUpdate(event?: vscode.TextDocumentChangeEvent): void {
         if (this.isDisposed) return;
+        if (this.timeout) clearTimeout(this.timeout);
 
-        if (this.timeout) {
-            clearTimeout(this.timeout);
+        if (event) {
+            this.applyIncrementalChangeToCache(event);
         }
+
         this.timeout = setTimeout(() => this.updateAll(), this.config.updateDelay);
+    }
+
+    private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
+        const uri = event.document.uri.toString();
+        const cache = this.lineCache.get(uri);
+        if (!cache) return;
+
+        for (const change of event.contentChanges) {
+            const startLine = change.range.start.line;
+            const endLine = change.range.end.line;
+            const linesAdded = (change.text.match(/\n/g) || []).length;
+            const linesRemoved = endLine - startLine;
+
+            cache.splice(startLine, linesRemoved + 1, ...new Array(linesAdded + 1).fill(undefined));
+        }
     }
 
     private updateAll(): void {
         if (this.isDisposed) return;
-
         for (const editor of vscode.window.visibleTextEditors) {
             this.processEditor(editor);
         }
@@ -220,7 +202,7 @@ export class IndentSpectra implements vscode.Disposable {
         const doc = editor.document;
         if (this.config.ignoredLanguages.has(doc.languageId)) return;
 
-        const tabSize = this.getTabSize(editor);
+        const tabSize = this.resolveTabSize(editor);
         const skipErrors = this.config.ignoreErrorLanguages.has(doc.languageId);
 
         const analysisResult = this.analyzeIndentation(doc, tabSize, skipErrors);
@@ -232,159 +214,113 @@ export class IndentSpectra implements vscode.Disposable {
         tabSize: number,
         skipErrors: boolean
     ): IndentationAnalysisResult {
-        const spectra: vscode.Range[][] = Array.from(
-            { length: this.decorators.length },
-            () => []
-        );
+        const uri = doc.uri.toString();
+        let cache = this.lineCache.get(uri);
+        const lineCount = doc.lineCount;
+
+        if (!cache || cache.length !== lineCount) {
+            cache = new Array(lineCount).fill(undefined);
+            this.lineCache.set(uri, cache);
+        }
+
+        const spectra: vscode.Range[][] = Array.from({ length: this.decorators.length }, () => []);
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
 
         const ignoredLines = this.identifyIgnoredLines(doc);
-        const lineCount = doc.lineCount;
 
         for (let i = 0; i < lineCount; i++) {
-            if (ignoredLines.has(i)) continue;
+            const isIgnored = ignoredLines.has(i);
+            let lineData = cache[i];
 
-            const line = doc.lineAt(i);
-            const lineText = line.text;
-
-            if (lineText.length === 0) continue;
-
-            const firstCharCode = lineText.charCodeAt(0);
-            if (firstCharCode !== 32 && firstCharCode !== 9) {
-                continue;
+            if (!lineData || lineData.isIgnored !== isIgnored) {
+                if (isIgnored) {
+                    lineData = { blocks: [], visualWidth: 0, isMixed: false, isError: false, isIgnored: true };
+                } else {
+                    const lineText = doc.lineAt(i).text;
+                    lineData = this.analyzeLine(lineText, tabSize, skipErrors, isIgnored);
+                }
+                cache[i] = lineData;
             }
 
-            const indentMatch = lineText.match(/^[\t ]+/);
-            if (!indentMatch) continue;
+            if (lineData.isIgnored) continue;
 
-            const matchText = indentMatch[0];
-
-            if (this.mixDecorator && matchText.includes('\t') && matchText.includes(' ')) {
-                mixed.push(new vscode.Range(i, 0, i, matchText.length));
+            for (let j = 0; j < lineData.blocks.length; j++) {
+                const start = j === 0 ? 0 : lineData.blocks[j - 1];
+                spectra[j % this.decorators.length].push(new vscode.Range(i, start, i, lineData.blocks[j]));
             }
 
-            const visualWidth = this.processLineIndentation(
-                matchText,
-                i,
-                tabSize,
-                spectra
-            );
-
-            if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
-                errors.push(new vscode.Range(i, 0, i, matchText.length));
+            if (lineData.isError && this.errorDecorator) {
+                errors.push(new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] || 0));
+            }
+            if (lineData.isMixed && this.mixDecorator) {
+                mixed.push(new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] || 0));
             }
         }
 
         return { spectra, errors, mixed };
     }
 
-    private processLineIndentation(
-        text: string,
-        line: number,
-        tabSize: number,
-        spectra: vscode.Range[][]
-    ): number {
+    private analyzeLine(text: string, tabSize: number, skipErrors: boolean, isIgnored: boolean): LineAnalysis {
+        const blocks: number[] = [];
         let visualWidth = 0;
-        let currentBlockStart = 0;
-        let blockIndex = 0;
-        const numDecorators = spectra.length;
+        let isMixed = false;
+        let isError = false;
 
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-            const charVisualWidth = char === '\t'
-                ? tabSize - (visualWidth % tabSize)
-                : 1;
+        const indentMatch = text.match(/^[\t ]+/);
+        if (indentMatch) {
+            const matchText = indentMatch[0];
+            isMixed = matchText.includes('\t') && matchText.includes(' ');
 
-            visualWidth += charVisualWidth;
+            let currentBlockStart = 0;
+            for (let i = 0; i < matchText.length; i++) {
+                const char = matchText[i];
+                visualWidth += (char === '\t' ? tabSize - (visualWidth % tabSize) : 1);
 
-            if (visualWidth % tabSize === 0) {
-                const blockEnd = i + 1;
-                spectra[blockIndex % numDecorators].push(
-                    new vscode.Range(line, currentBlockStart, line, blockEnd)
-                );
-                blockIndex++;
-                currentBlockStart = blockEnd;
+                if (visualWidth % tabSize === 0) {
+                    blocks.push(i + 1);
+                    currentBlockStart = i + 1;
+                }
             }
+            if (currentBlockStart < matchText.length) {
+                blocks.push(matchText.length);
+            }
+            isError = !skipErrors && visualWidth % tabSize !== 0;
         }
 
-        if (currentBlockStart < text.length) {
-            spectra[blockIndex % numDecorators].push(
-                new vscode.Range(line, currentBlockStart, line, text.length)
-            );
-        }
-
-        return visualWidth;
+        return { blocks, visualWidth, isMixed, isError, isIgnored };
     }
 
-    private applyDecorations(
-        editor: vscode.TextEditor,
-        result: IndentationAnalysisResult
-    ): void {
+    private applyDecorations(editor: vscode.TextEditor, result: IndentationAnalysisResult): void {
         if (this.isDisposed) return;
-
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.spectra[i]));
-
-        if (this.errorDecorator) {
-            editor.setDecorations(this.errorDecorator, result.errors);
-        }
-        if (this.mixDecorator) {
-            editor.setDecorations(this.mixDecorator, result.mixed);
-        }
-    }
-
-    private getTabSize(editor: vscode.TextEditor): number {
-        return this.resolveTabSize(editor);
+        if (this.errorDecorator) editor.setDecorations(this.errorDecorator, result.errors);
+        if (this.mixDecorator) editor.setDecorations(this.mixDecorator, result.mixed);
     }
 
     private resolveTabSize(editor: vscode.TextEditor): number {
-        const tabSizeOption = editor.options.tabSize;
-
-        if (typeof tabSizeOption === 'number' && tabSizeOption > 0) {
-            return tabSizeOption;
-        }
-
-        if (typeof tabSizeOption === 'string') {
-            const parsed = parseInt(tabSizeOption, 10);
-            if (!isNaN(parsed) && parsed > 0) {
-                return parsed;
-            }
-        }
-
-        const globalTabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize');
-        if (typeof globalTabSize === 'number' && globalTabSize > 0) {
-            return globalTabSize;
-        }
-
-        return DEFAULT_TAB_SIZE;
+        const size = editor.options.tabSize;
+        if (typeof size === 'number') return size;
+        if (typeof size === 'string') return parseInt(size, 10) || DEFAULT_TAB_SIZE;
+        return vscode.workspace.getConfiguration('editor').get<number>('tabSize') || DEFAULT_TAB_SIZE;
     }
 
     private identifyIgnoredLines(doc: vscode.TextDocument): Set<number> {
         const ignoredLines = new Set<number>();
-
-        if (this.compiledIgnorePatterns.length === 0) {
-            return ignoredLines;
-        }
+        if (this.compiledIgnorePatterns.length === 0) return ignoredLines;
 
         const text = doc.getText();
         const lineStarts: number[] = [0];
-
         for (let i = 0; i < text.length; i++) {
-            if (text[i] === '\n') {
-                lineStarts.push(i + 1);
-            }
+            if (text[i] === '\n') lineStarts.push(i + 1);
         }
 
         const getLineIndex = (offset: number): number => {
-            let low = 0;
-            let high = lineStarts.length - 1;
+            let low = 0, high = lineStarts.length - 1;
             while (low <= high) {
                 const mid = (low + high) >> 1;
-                if (lineStarts[mid] <= offset) {
-                    low = mid + 1;
-                } else {
-                    high = mid - 1;
-                }
+                if (lineStarts[mid] <= offset) low = mid + 1;
+                else high = mid - 1;
             }
             return high;
         };
@@ -392,67 +328,15 @@ export class IndentSpectra implements vscode.Disposable {
         for (const regex of this.compiledIgnorePatterns) {
             regex.lastIndex = 0;
             let match: RegExpExecArray | null;
-
             while ((match = regex.exec(text)) !== null) {
                 const startLine = getLineIndex(match.index);
                 const endLine = getLineIndex(match.index + match[0].length);
-
                 if (endLine - startLine <= MAX_IGNORED_LINE_SPAN) {
-                    for (let i = startLine; i <= endLine; i++) {
-                        ignoredLines.add(i);
-                    }
+                    for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
                 }
-
-                if (match[0].length === 0) {
-                    regex.lastIndex++;
-                }
+                if (match[0].length === 0) regex.lastIndex++;
             }
         }
-
         return ignoredLines;
-    }
-
-    private calculateSpectraBlocks(
-        text: string,
-        line: number,
-        tabSize: number
-    ): { visualWidth: number; blockRanges: vscode.Range[] } {
-        const blockRanges: vscode.Range[] = [];
-        let visualWidth = 0;
-        let currentBlockStartCharIndex = 0;
-
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-            const isTab = char === '\t';
-
-            const charVisualWidth = isTab
-                ? tabSize - (visualWidth % tabSize)
-                : 1;
-
-            visualWidth += charVisualWidth;
-
-            if (visualWidth % tabSize === 0) {
-                const blockEndCharIndex = i + 1;
-
-                blockRanges.push(new vscode.Range(
-                    line,
-                    currentBlockStartCharIndex,
-                    line,
-                    blockEndCharIndex
-                ));
-                currentBlockStartCharIndex = blockEndCharIndex;
-            }
-        }
-
-        if (currentBlockStartCharIndex < text.length) {
-            blockRanges.push(new vscode.Range(
-                line,
-                currentBlockStartCharIndex,
-                line,
-                text.length
-            ));
-        }
-
-        return { visualWidth, blockRanges };
     }
 }

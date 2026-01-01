@@ -24,7 +24,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.workspace.onDidChangeTextDocument(
             (event) => {
                 if (vscode.window.visibleTextEditors.some(editor => editor.document === event.document)) {
-                    indentSpectra?.triggerUpdate();
+                    indentSpectra?.triggerUpdate(event);
                 }
             }
         ),
