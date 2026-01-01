@@ -131,12 +131,21 @@ export class IndentSpectra implements vscode.Disposable {
         const cache = this.lineCache.get(uri);
         if (!cache) return;
 
-        for (const change of event.contentChanges) {
+        const sortedChanges = [...event.contentChanges].sort((a, b) =>
+            b.range.start.line - a.range.start.line
+        );
+
+        for (const change of sortedChanges) {
             const startLine = change.range.start.line;
             const endLine = change.range.end.line;
             const linesAdded = (change.text.match(/\n/g) || []).length;
             const linesRemoved = endLine - startLine;
-            cache.splice(startLine, linesRemoved + 1, ...new Array(linesAdded + 1).fill(undefined));
+
+            cache.splice(
+                startLine,
+                linesRemoved + 1,
+                ...new Array(linesAdded + 1).fill(undefined)
+            );
         }
     }
 
