@@ -69,7 +69,7 @@ Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName
 
 ## Comparison with Indent Rainbow
 
-For starters, it's lightweight: *Indent Spectra* install file = 18 KB, *Indent Rainbow* = 179 KB.
+For starters, it's lightweight: *Indent Spectra* install file = 12 KB, *Indent Rainbow* = 179 KB.
 
 ### 1. Performance, Efficiency
 
