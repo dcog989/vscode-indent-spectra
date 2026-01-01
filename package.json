@@ -14,7 +14,7 @@
     },
     "homepage": "https://github.com/dcog989/vscode-indent-spectra/blob/main/README.md",
     "engines": {
-        "vscode": "^1.106.1"
+        "vscode": "^1.107.1"
     },
     "categories": [
         "Formatters",
