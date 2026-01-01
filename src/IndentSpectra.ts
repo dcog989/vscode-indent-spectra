@@ -3,6 +3,7 @@ import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
 
 const DEFAULT_TAB_SIZE = 4;
 const MAX_IGNORED_LINE_SPAN = 2000;
+const CHUNK_SIZE_LINES = 1000;
 const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const RGBA_COLOR_REGEX = /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
@@ -26,7 +27,7 @@ interface IndentationAnalysisResult {
 }
 
 interface LineAnalysis {
-    blocks: number[]; // End character indices of each indent block
+    blocks: number[];
     visualWidth: number;
     isMixed: boolean;
     isError: boolean;
@@ -64,8 +65,8 @@ export class IndentSpectra implements vscode.Disposable {
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
     private decoratorCacheKey: string | null = null;
-
     private lineCache = new Map<string, (LineAnalysis | undefined)[]>();
+    private cancellationSource?: vscode.CancellationTokenSource;
 
     constructor() {
         this.config = loadConfigurationFromVSCode();
@@ -152,8 +153,17 @@ export class IndentSpectra implements vscode.Disposable {
     public dispose(): void {
         this.isDisposed = true;
         this.disposeDecorators();
+        this.cancelCurrentWork();
         if (this.timeout) clearTimeout(this.timeout);
         this.lineCache.clear();
+    }
+
+    private cancelCurrentWork(): void {
+        if (this.cancellationSource) {
+            this.cancellationSource.cancel();
+            this.cancellationSource.dispose();
+            this.cancellationSource = undefined;
+        }
     }
 
     private disposeDecorators(): void {
@@ -173,7 +183,11 @@ export class IndentSpectra implements vscode.Disposable {
             this.applyIncrementalChangeToCache(event);
         }
 
-        this.timeout = setTimeout(() => this.updateAll(), this.config.updateDelay);
+        this.timeout = setTimeout(async () => {
+            this.cancelCurrentWork();
+            this.cancellationSource = new vscode.CancellationTokenSource();
+            await this.updateAll(this.cancellationSource.token);
+        }, this.config.updateDelay);
     }
 
     private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
@@ -186,34 +200,37 @@ export class IndentSpectra implements vscode.Disposable {
             const endLine = change.range.end.line;
             const linesAdded = (change.text.match(/\n/g) || []).length;
             const linesRemoved = endLine - startLine;
-
             cache.splice(startLine, linesRemoved + 1, ...new Array(linesAdded + 1).fill(undefined));
         }
     }
 
-    private updateAll(): void {
+    private async updateAll(token: vscode.CancellationToken): Promise<void> {
         if (this.isDisposed) return;
         for (const editor of vscode.window.visibleTextEditors) {
-            this.processEditor(editor);
+            if (token.isCancellationRequested) return;
+            await this.processEditor(editor, token);
         }
     }
 
-    private processEditor(editor: vscode.TextEditor): void {
+    private async processEditor(editor: vscode.TextEditor, token: vscode.CancellationToken): Promise<void> {
         const doc = editor.document;
         if (this.config.ignoredLanguages.has(doc.languageId)) return;
 
         const tabSize = this.resolveTabSize(editor);
         const skipErrors = this.config.ignoreErrorLanguages.has(doc.languageId);
 
-        const analysisResult = this.analyzeIndentation(doc, tabSize, skipErrors);
-        this.applyDecorations(editor, analysisResult);
+        const result = await this.analyzeIndentation(doc, tabSize, skipErrors, token);
+        if (result && !token.isCancellationRequested) {
+            this.applyDecorations(editor, result);
+        }
     }
 
-    private analyzeIndentation(
+    private async analyzeIndentation(
         doc: vscode.TextDocument,
         tabSize: number,
-        skipErrors: boolean
-    ): IndentationAnalysisResult {
+        skipErrors: boolean,
+        token: vscode.CancellationToken
+    ): Promise<IndentationAnalysisResult | null> {
         const uri = doc.uri.toString();
         let cache = this.lineCache.get(uri);
         const lineCount = doc.lineCount;
@@ -227,9 +244,19 @@ export class IndentSpectra implements vscode.Disposable {
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
 
-        const ignoredLines = this.identifyIgnoredLines(doc);
+        const ignoredLines = await this.identifyIgnoredLines(doc, token);
+        if (token.isCancellationRequested) return null;
+
+        let lastYieldTime = performance.now();
 
         for (let i = 0; i < lineCount; i++) {
+            // Yield to event loop only if the work exceeds the 10ms budget
+            if (i % 1000 === 0 && (performance.now() - lastYieldTime) > 10) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                if (token.isCancellationRequested) return null;
+                lastYieldTime = performance.now();
+            }
+
             const isIgnored = ignoredLines.has(i);
             let lineData = cache[i];
 
@@ -237,8 +264,7 @@ export class IndentSpectra implements vscode.Disposable {
                 if (isIgnored) {
                     lineData = { blocks: [], visualWidth: 0, isMixed: false, isError: false, isIgnored: true };
                 } else {
-                    const lineText = doc.lineAt(i).text;
-                    lineData = this.analyzeLine(lineText, tabSize, skipErrors, isIgnored);
+                    lineData = this.analyzeLine(doc.lineAt(i).text, tabSize, skipErrors, isIgnored);
                 }
                 cache[i] = lineData;
             }
@@ -263,31 +289,23 @@ export class IndentSpectra implements vscode.Disposable {
 
     private analyzeLine(text: string, tabSize: number, skipErrors: boolean, isIgnored: boolean): LineAnalysis {
         const blocks: number[] = [];
-        let visualWidth = 0;
-        let isMixed = false;
-        let isError = false;
+        let visualWidth = 0, isMixed = false, isError = false;
 
         const indentMatch = text.match(/^[\t ]+/);
         if (indentMatch) {
             const matchText = indentMatch[0];
             isMixed = matchText.includes('\t') && matchText.includes(' ');
-
-            let currentBlockStart = 0;
+            let currentStart = 0;
             for (let i = 0; i < matchText.length; i++) {
-                const char = matchText[i];
-                visualWidth += (char === '\t' ? tabSize - (visualWidth % tabSize) : 1);
-
+                visualWidth += (matchText[i] === '\t' ? tabSize - (visualWidth % tabSize) : 1);
                 if (visualWidth % tabSize === 0) {
                     blocks.push(i + 1);
-                    currentBlockStart = i + 1;
+                    currentStart = i + 1;
                 }
             }
-            if (currentBlockStart < matchText.length) {
-                blocks.push(matchText.length);
-            }
+            if (currentStart < matchText.length) blocks.push(matchText.length);
             isError = !skipErrors && visualWidth % tabSize !== 0;
         }
-
         return { blocks, visualWidth, isMixed, isError, isIgnored };
     }
 
@@ -305,7 +323,7 @@ export class IndentSpectra implements vscode.Disposable {
         return vscode.workspace.getConfiguration('editor').get<number>('tabSize') || DEFAULT_TAB_SIZE;
     }
 
-    private identifyIgnoredLines(doc: vscode.TextDocument): Set<number> {
+    private async identifyIgnoredLines(doc: vscode.TextDocument, token: vscode.CancellationToken): Promise<Set<number>> {
         const ignoredLines = new Set<number>();
         if (this.compiledIgnorePatterns.length === 0) return ignoredLines;
 
@@ -325,10 +343,21 @@ export class IndentSpectra implements vscode.Disposable {
             return high;
         };
 
+        let lastYieldTime = performance.now();
+
         for (const regex of this.compiledIgnorePatterns) {
             regex.lastIndex = 0;
             let match: RegExpExecArray | null;
+            let matchCount = 0;
+
             while ((match = regex.exec(text)) !== null) {
+                // Yield to event loop only if the work exceeds the 10ms budget
+                if (++matchCount % 100 === 0 && (performance.now() - lastYieldTime) > 10) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    if (token.isCancellationRequested) return ignoredLines;
+                    lastYieldTime = performance.now();
+                }
+
                 const startLine = getLineIndex(match.index);
                 const endLine = getLineIndex(match.index + match[0].length);
                 if (endLine - startLine <= MAX_IGNORED_LINE_SPAN) {
