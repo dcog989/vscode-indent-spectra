@@ -2,7 +2,7 @@
     "name": "indent-spectra",
     "displayName": "Indent Spectra",
     "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-    "version": "1.2.9",
+    "version": "1.2.10",
     "publisher": "dcog989",
     "icon": "assets/icon.png",
     "repository": {
@@ -125,13 +125,12 @@
         "clean": "npm run check-types && node -e \"require('fs').rmSync('dist', {recursive:true, force:true}); require('fs').rmSync('out', {recursive:true, force:true}); require('fs').rmSync('.vscode-test', {recursive:true, force:true});\""
     },
     "devDependencies": {
-        "@types/glob": "^8.1.0",
-        "@types/mocha": "^10.0.10",
-        "@types/node": "^24.10.1",
-        "@types/vscode": "^1.106.1",
-        "@vscode/test-electron": "^2.5.2",
-        "glob": "^13.0.0",
-        "mocha": "^11.7.5",
-        "typescript": "^5.9.3"
+        "@types/mocha": "^10.0",
+        "@types/node": "^25.0",
+        "@types/vscode": "^1.107",
+        "@vscode/test-electron": "^2.5",
+        "glob": "^13.0",
+        "mocha": "^11.7",
+        "typescript": "^5.9"
     }
 }
