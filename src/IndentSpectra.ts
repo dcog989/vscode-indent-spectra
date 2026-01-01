@@ -120,24 +120,26 @@ export class IndentSpectra implements vscode.Disposable {
             .map(pattern => {
                 try {
                     let source = pattern;
-                    let flags = 'g'; // Default to global for loop reuse
+                    let existingFlags = '';
 
-                    // Try to parse as /pattern/flags format
-                    const match = pattern.match(/^\/(.+)\/([gimsuy]*)$/);
+                    // 1. Extract source and flags if in /pattern/flags format
+                    const match = pattern.match(/^\/(.+)\/([a-z]*)$/i);
                     if (match) {
                         source = match[1];
-                        flags = match[2];
-                        if (!flags.includes('g')) {
-                            flags += 'g';
-                        }
-                        // Ensure multiline flag is present if start anchor is used
-                        // This prevents ^ from matching only start of string in single-line mode
-                        if (source.includes('^') && !flags.includes('m')) {
-                            flags += 'm';
-                        }
+                        existingFlags = match[2];
                     }
 
-                    return new RegExp(source, flags);
+                    // 2. Normalize flags using a Set to prevent duplicates
+                    // We enforce 'g' because identifyIgnoredLines uses a while-exec loop
+                    // We enforce 'm' because matches are performed against the full document text,
+                    // so anchors (^ and $) should work on a per-line basis.
+                    const flagsSet = new Set(existingFlags.split(''));
+                    flagsSet.add('g');
+                    flagsSet.add('m');
+
+                    const finalFlags = Array.from(flagsSet).join('');
+
+                    return new RegExp(source, finalFlags);
                 } catch (e) {
                     console.warn(`[IndentSpectra] Invalid regex pattern: ${pattern}`, e);
                     return null;

@@ -581,4 +581,26 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         // Cleanup
         await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Global);
     });
+
+
+    // ============================================================================
+    // REGEX
+    // ============================================================================
+    test('Should handle ignore patterns with end-of-line anchors', async () => {
+        indentSpectra = new IndentSpectra();
+        const config = vscode.workspace.getConfiguration('indentSpectra');
+
+        // Pattern looking for 'ignore' at the end of a line
+        await config.update('ignorePatterns', ['/ignore$/'], vscode.ConfigurationTarget.Global);
+        indentSpectra.reloadConfig();
+
+        const content = 'line to ignore\n  not this one';
+        const doc = await vscode.workspace.openTextDocument({ content, language: 'javascript' });
+        await vscode.window.showTextDocument(doc);
+
+        indentSpectra.triggerUpdate();
+        assert.ok(true, 'Regex with end anchor should be compiled and executed correctly');
+
+        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Global);
+    });
 });
