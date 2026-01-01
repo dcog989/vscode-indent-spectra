@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManager';
 
-const MAX_IGNORED_LINE_SPAN = 2000;
+const MAX_IGNORED_LINE_SPAN = 10000;
 const CHUNK_SIZE_LINES = 1000;
 
 interface IndentationAnalysisResult {
@@ -28,6 +28,7 @@ export class IndentSpectra implements vscode.Disposable {
     private isDisposed = false;
     private decoratorCacheKey: string | null = null;
     private lineCache = new Map<string, (LineAnalysis | undefined)[]>();
+    private ignoredLinesCache = new Map<string, Set<number>>();
     private cancellationSource?: vscode.CancellationTokenSource;
 
     constructor() {
@@ -49,6 +50,7 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         this.lineCache.clear();
+        this.ignoredLinesCache.clear();
         this.triggerUpdate();
     }
 
@@ -92,6 +94,7 @@ export class IndentSpectra implements vscode.Disposable {
         this.configManager.dispose();
         if (this.timeout) clearTimeout(this.timeout);
         this.lineCache.clear();
+        this.ignoredLinesCache.clear();
     }
 
     private cancelCurrentWork(): void {
@@ -128,6 +131,8 @@ export class IndentSpectra implements vscode.Disposable {
 
     private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
         const uri = event.document.uri.toString();
+        this.ignoredLinesCache.delete(uri);
+
         const cache = this.lineCache.get(uri);
         if (!cache) return;
 
@@ -140,12 +145,7 @@ export class IndentSpectra implements vscode.Disposable {
             const endLine = change.range.end.line;
             const linesAdded = (change.text.match(/\n/g) || []).length;
             const linesRemoved = endLine - startLine;
-
-            cache.splice(
-                startLine,
-                linesRemoved + 1,
-                ...new Array(linesAdded + 1).fill(undefined)
-            );
+            cache.splice(startLine, linesRemoved + 1, ...new Array(linesAdded + 1).fill(undefined));
         }
     }
 
@@ -186,12 +186,16 @@ export class IndentSpectra implements vscode.Disposable {
             this.lineCache.set(uri, cache);
         }
 
+        let ignoredLines = this.ignoredLinesCache.get(uri);
+        if (!ignoredLines) {
+            ignoredLines = await this.identifyIgnoredLines(doc, token);
+            if (token.isCancellationRequested) return null;
+            this.ignoredLinesCache.set(uri, ignoredLines);
+        }
+
         const spectra: vscode.Range[][] = Array.from({ length: this.decorators.length }, () => []);
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
-
-        const ignoredLines = await this.identifyIgnoredLines(doc, token);
-        if (token.isCancellationRequested) return null;
 
         let lastYieldTime = performance.now();
 
