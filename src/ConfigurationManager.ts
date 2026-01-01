@@ -38,6 +38,11 @@ export class ConfigurationManager {
         const rawColors = config.get<string[]>('colors', []);
         const sanitizedColors = this.resolveColors(rawPreset, rawColors);
 
+        let indicatorStyle = config.get<string>('indicatorStyle', 'classic');
+        if (indicatorStyle !== 'classic' && indicatorStyle !== 'light') {
+            indicatorStyle = 'classic';
+        }
+
         this.config = {
             updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
             colorPreset: rawPreset,
@@ -48,7 +53,7 @@ export class ConfigurationManager {
             compiledPatterns: this.compilePatterns(config.get<string[]>('ignorePatterns', [])),
             ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
             ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
-            indicatorStyle: config.get<'classic' | 'light'>('indicatorStyle', 'classic'),
+            indicatorStyle: indicatorStyle as 'classic' | 'light',
             lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1))
         };
 
