@@ -3,6 +3,7 @@ import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManage
 
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
+const MASSIVE_FILE_THRESHOLD = 50000;
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
@@ -29,6 +30,8 @@ export class IndentSpectra implements vscode.Disposable {
     private decoratorCacheKey: string | null = null;
     private lineCache = new Map<string, (LineAnalysis | undefined)[]>();
     private ignoredLinesCache = new Map<string, Set<number>>();
+    private lastTabSize = new Map<string, number>();
+    private lastAppliedState = new Map<string, string>();
     private cancellationSource?: vscode.CancellationTokenSource;
 
     constructor() {
@@ -51,6 +54,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         this.lineCache.clear();
         this.ignoredLinesCache.clear();
+        this.lastAppliedState.clear();
         this.triggerUpdate();
     }
 
@@ -91,6 +95,8 @@ export class IndentSpectra implements vscode.Disposable {
         const uriString = uri.toString();
         this.lineCache.delete(uriString);
         this.ignoredLinesCache.delete(uriString);
+        this.lastTabSize.delete(uriString);
+        this.lastAppliedState.delete(uriString);
     }
 
     public dispose(): void {
@@ -101,6 +107,7 @@ export class IndentSpectra implements vscode.Disposable {
         if (this.timeout) clearTimeout(this.timeout);
         this.lineCache.clear();
         this.ignoredLinesCache.clear();
+        this.lastAppliedState.clear();
     }
 
     private cancelCurrentWork(): void {
@@ -138,6 +145,7 @@ export class IndentSpectra implements vscode.Disposable {
     private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
         const uri = event.document.uri.toString();
         this.ignoredLinesCache.delete(uri);
+        this.lastAppliedState.delete(uri);
 
         const cache = this.lineCache.get(uri);
         if (!cache) return;
@@ -168,12 +176,23 @@ export class IndentSpectra implements vscode.Disposable {
         const config = this.configManager.current;
         if (config.ignoredLanguages.has(doc.languageId)) return;
 
+        const uri = doc.uri.toString();
         const tabSize = this.resolveTabSize(editor);
+        const stateKey = `${doc.version}-${tabSize}-${JSON.stringify(editor.visibleRanges)}`;
+
+        if (this.lastAppliedState.get(uri) === stateKey) return;
+
+        if (this.lastTabSize.get(uri) !== tabSize) {
+            this.lineCache.delete(uri);
+            this.lastTabSize.set(uri, tabSize);
+        }
+
         const skipErrors = config.ignoreErrorLanguages.has(doc.languageId);
 
         const result = await this.analyzeIndentation(doc, tabSize, skipErrors, editor.visibleRanges, token);
         if (result && !token.isCancellationRequested) {
             this.applyDecorations(editor, result);
+            this.lastAppliedState.set(uri, stateKey);
         }
     }
 
@@ -295,6 +314,10 @@ export class IndentSpectra implements vscode.Disposable {
         const ignoredLines = new Set<number>();
         const patterns = this.configManager.current.compiledPatterns;
         if (patterns.length === 0) return ignoredLines;
+
+        if (doc.lineCount > MASSIVE_FILE_THRESHOLD && doc.languageId === 'plaintext') {
+            return ignoredLines;
+        }
 
         const text = doc.getText();
         const lineStarts: number[] = [0];
