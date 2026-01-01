@@ -9,8 +9,8 @@ async function main() {
         await runTests({
             extensionDevelopmentPath,
             extensionTestsPath,
-            // Ensure we test against the engine specified in package.json
-            version: '1.106.1'
+            // Match the version in your package.json
+            version: '1.107.1'
         });
     } catch (err) {
         console.error('Failed to run tests', err);

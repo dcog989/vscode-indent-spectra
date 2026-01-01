@@ -110,38 +110,25 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private compileIgnorePatterns(patternStrings: string[]): void {
-        this.compiledIgnorePatterns = [];
-
-        if (patternStrings.length === 0) {
-            return;
-        }
-
         this.compiledIgnorePatterns = patternStrings
             .map(pattern => {
                 try {
                     let source = pattern;
                     let existingFlags = '';
 
-                    // 1. Extract source and flags if in /pattern/flags format
                     const match = pattern.match(/^\/(.+)\/([a-z]*)$/i);
                     if (match) {
                         source = match[1];
                         existingFlags = match[2];
                     }
 
-                    // 2. Normalize flags using a Set to prevent duplicates
-                    // We enforce 'g' because identifyIgnoredLines uses a while-exec loop
-                    // We enforce 'm' because matches are performed against the full document text,
-                    // so anchors (^ and $) should work on a per-line basis.
-                    const flagsSet = new Set(existingFlags.split(''));
-                    flagsSet.add('g');
-                    flagsSet.add('m');
+                    const flags = new Set(existingFlags.toLowerCase().split(''));
+                    flags.add('g');
+                    flags.add('m');
 
-                    const finalFlags = Array.from(flagsSet).join('');
-
-                    return new RegExp(source, finalFlags);
+                    return new RegExp(source, Array.from(flags).join(''));
                 } catch (e) {
-                    console.warn(`[IndentSpectra] Invalid regex pattern: ${pattern}`, e);
+                    console.warn(`[IndentSpectra] Invalid pattern: ${pattern}`, e);
                     return null;
                 }
             })

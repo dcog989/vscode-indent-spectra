@@ -1,10 +1,7 @@
-# ---------------------------------------------------------
-# Exclude
-# ---------------------------------------------------------
+# Exclude Source & Development files
 .ai/
 .assets/
 .docs/
-.eslintrc.json
 .git/
 .github/
 .gitignore
@@ -16,21 +13,28 @@
 **/*.map
 **/*.ts
 **/*.tsbuildinfo
+
+# Build Configs
+.eslintrc.json
+esbuild.js
+tsconfig.json
+repomix.config.json
+vsc-extension-quickstart.md
+
+# Build Folders
+src/
+tests/
+out/
+node_modules/
+
+# Selective Asset Ignore
 assets/icon-64.png
 assets/icon.svg
 assets/screen-1.png
-node_modules/
-out/test/
-repomix.config.json
-src/
-tests/
-tsconfig.json
-vsc-extension-quickstart.md
 
-# ---------------------------------------------------------
-# Include
-# ---------------------------------------------------------
+# Explicitly Include Production Files
 !dist/
+!dist/extension.js
 !package.json
 !README.md
 !CHANGELOG.md

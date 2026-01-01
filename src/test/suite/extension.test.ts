@@ -515,7 +515,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const editor = await vscode.window.showTextDocument(doc);
 
         // Set editor tab size
-        await editor.edit(editBuilder => {
+        await editor.edit(() => {
             // Empty edit just to trigger options
         });
 
