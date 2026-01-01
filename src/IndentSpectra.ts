@@ -240,7 +240,6 @@ export class IndentSpectra implements vscode.Disposable {
         const mixed: vscode.Range[] = [];
 
         const ignoredLines = this.identifyIgnoredLines(doc);
-
         const lineCount = doc.lineCount;
 
         for (let i = 0; i < lineCount; i++) {
@@ -251,8 +250,8 @@ export class IndentSpectra implements vscode.Disposable {
 
             if (lineText.length === 0) continue;
 
-            const firstChar = lineText.charCodeAt(0);
-            if (firstChar !== 32 /* space */ && firstChar !== 9 /* tab */) {
+            const firstCharCode = lineText.charCodeAt(0);
+            if (firstCharCode !== 32 && firstCharCode !== 9) {
                 continue;
             }
 
@@ -261,23 +260,16 @@ export class IndentSpectra implements vscode.Disposable {
 
             const matchText = indentMatch[0];
 
-            const hasTabs = matchText.includes('\t');
-            const hasSpaces = matchText.includes(' ');
-
-            if (hasTabs && hasSpaces && this.mixDecorator) {
+            if (this.mixDecorator && matchText.includes('\t') && matchText.includes(' ')) {
                 mixed.push(new vscode.Range(i, 0, i, matchText.length));
             }
 
-            const { visualWidth, blockRanges } = this.calculateSpectraBlocks(
+            const visualWidth = this.processLineIndentation(
                 matchText,
                 i,
-                tabSize
+                tabSize,
+                spectra
             );
-
-            for (let j = 0; j < blockRanges.length; j++) {
-                const colorIndex = j % this.decorators.length;
-                spectra[colorIndex].push(blockRanges[j]);
-            }
 
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
                 errors.push(new vscode.Range(i, 0, i, matchText.length));
@@ -285,6 +277,44 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         return { spectra, errors, mixed };
+    }
+
+    private processLineIndentation(
+        text: string,
+        line: number,
+        tabSize: number,
+        spectra: vscode.Range[][]
+    ): number {
+        let visualWidth = 0;
+        let currentBlockStart = 0;
+        let blockIndex = 0;
+        const numDecorators = spectra.length;
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const charVisualWidth = char === '\t'
+                ? tabSize - (visualWidth % tabSize)
+                : 1;
+
+            visualWidth += charVisualWidth;
+
+            if (visualWidth % tabSize === 0) {
+                const blockEnd = i + 1;
+                spectra[blockIndex % numDecorators].push(
+                    new vscode.Range(line, currentBlockStart, line, blockEnd)
+                );
+                blockIndex++;
+                currentBlockStart = blockEnd;
+            }
+        }
+
+        if (currentBlockStart < text.length) {
+            spectra[blockIndex % numDecorators].push(
+                new vscode.Range(line, currentBlockStart, line, text.length)
+            );
+        }
+
+        return visualWidth;
     }
 
     private applyDecorations(
