@@ -3,6 +3,7 @@ import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManage
 
 const MAX_IGNORED_LINE_SPAN = 10000;
 const CHUNK_SIZE_LINES = 1000;
+const VISIBLE_LINE_BUFFER = 50;
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
@@ -165,7 +166,7 @@ export class IndentSpectra implements vscode.Disposable {
         const tabSize = this.resolveTabSize(editor);
         const skipErrors = config.ignoreErrorLanguages.has(doc.languageId);
 
-        const result = await this.analyzeIndentation(doc, tabSize, skipErrors, token);
+        const result = await this.analyzeIndentation(doc, tabSize, skipErrors, editor.visibleRanges, token);
         if (result && !token.isCancellationRequested) {
             this.applyDecorations(editor, result);
         }
@@ -175,6 +176,7 @@ export class IndentSpectra implements vscode.Disposable {
         doc: vscode.TextDocument,
         tabSize: number,
         skipErrors: boolean,
+        visibleRanges: readonly vscode.Range[],
         token: vscode.CancellationToken
     ): Promise<IndentationAnalysisResult | null> {
         const uri = doc.uri.toString();
@@ -197,10 +199,22 @@ export class IndentSpectra implements vscode.Disposable {
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
 
+        const linesToProcess = new Set<number>();
+        for (const range of visibleRanges) {
+            const start = Math.max(0, range.start.line - VISIBLE_LINE_BUFFER);
+            const end = Math.min(lineCount - 1, range.end.line + VISIBLE_LINE_BUFFER);
+            for (let i = start; i <= end; i++) {
+                linesToProcess.add(i);
+            }
+        }
+
+        const sortedLines = Array.from(linesToProcess).sort((a, b) => a - b);
         let lastYieldTime = performance.now();
 
-        for (let i = 0; i < lineCount; i++) {
-            if (i % CHUNK_SIZE_LINES === 0 && (performance.now() - lastYieldTime) > 10) {
+        for (let idx = 0; idx < sortedLines.length; idx++) {
+            const i = sortedLines[idx];
+
+            if (idx % CHUNK_SIZE_LINES === 0 && (performance.now() - lastYieldTime) > 10) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 if (token.isCancellationRequested) return null;
                 lastYieldTime = performance.now();
