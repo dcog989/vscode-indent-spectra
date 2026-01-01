@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManager';
 
-const MAX_IGNORED_LINE_SPAN = 10000;
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
 
@@ -323,9 +322,11 @@ export class IndentSpectra implements vscode.Disposable {
 
                 const startLine = getLineIndex(match.index);
                 const endLine = getLineIndex(match.index + match[0].length);
-                if (endLine - startLine <= MAX_IGNORED_LINE_SPAN) {
-                    for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
+
+                for (let i = startLine; i <= endLine; i++) {
+                    ignoredLines.add(i);
                 }
+
                 if (match[0].length === 0) regex.lastIndex++;
             }
         }
