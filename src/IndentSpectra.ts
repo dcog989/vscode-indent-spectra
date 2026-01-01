@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
 
-// Constants
 const DEFAULT_TAB_SIZE = 4;
 const MAX_IGNORED_LINE_SPAN = 2000;
 
@@ -9,7 +8,6 @@ const MAX_IGNORED_LINE_SPAN = 2000;
 const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const RGBA_COLOR_REGEX = /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
-// Type-Safe Configuration
 interface IndentSpectraConfig {
     updateDelay: number;
     colorPreset: PaletteKey | 'custom';
@@ -23,14 +21,12 @@ interface IndentSpectraConfig {
     lightIndicatorWidth: number;
 }
 
-// Analysis Result Type
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
     errors: vscode.Range[];
     mixed: vscode.Range[];
 }
 
-// Color Validation Helper
 function isValidColor(color: string): boolean {
     if (!color || typeof color !== 'string') return false;
     const trimmed = color.trim();
@@ -59,16 +55,13 @@ export class IndentSpectra implements vscode.Disposable {
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
 
-    // Configuration State
     private config: IndentSpectraConfig;
 
-    // Cache for ignore patterns (compiled once)
     private compiledIgnorePatterns: RegExp[] = [];
 
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
 
-    // Cache keys to detect when decorators need recreation
     private decoratorCacheKey: string | null = null;
 
     constructor() {
@@ -82,10 +75,8 @@ export class IndentSpectra implements vscode.Disposable {
         const newConfig = loadConfigurationFromVSCode();
         this.config = newConfig;
 
-        // Recompile patterns if they changed
         this.compileIgnorePatterns(newConfig.ignorePatterns);
 
-        // Only recreate decorators if visual settings changed
         const newCacheKey = this.computeDecoratorCacheKey(newConfig);
         if (newCacheKey !== this.decoratorCacheKey) {
             this.disposeDecorators();
@@ -97,7 +88,6 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
-        // Create a unique key based on appearance settings
         const colors = this.resolveColorPalette(config);
         return JSON.stringify({
             preset: config.colorPreset,
@@ -221,7 +211,6 @@ export class IndentSpectra implements vscode.Disposable {
     private updateAll(): void {
         if (this.isDisposed) return;
 
-        // Process all visible editors (handles split view)
         for (const editor of vscode.window.visibleTextEditors) {
             this.processEditor(editor);
         }
@@ -252,7 +241,6 @@ export class IndentSpectra implements vscode.Disposable {
 
         const ignoredLines = this.identifyIgnoredLines(doc);
 
-        // Performance Optimization: Iterate lines directly instead of Regex on full text
         const lineCount = doc.lineCount;
 
         for (let i = 0; i < lineCount; i++) {
@@ -261,10 +249,8 @@ export class IndentSpectra implements vscode.Disposable {
             const line = doc.lineAt(i);
             const lineText = line.text;
 
-            // Fast path for empty/short lines
             if (lineText.length === 0) continue;
 
-            // Check if line starts with whitespace
             const firstChar = lineText.charCodeAt(0);
             if (firstChar !== 32 /* space */ && firstChar !== 9 /* tab */) {
                 continue;
@@ -275,7 +261,6 @@ export class IndentSpectra implements vscode.Disposable {
 
             const matchText = indentMatch[0];
 
-            // Check for mixed indentation
             const hasTabs = matchText.includes('\t');
             const hasSpaces = matchText.includes(' ');
 
@@ -285,17 +270,15 @@ export class IndentSpectra implements vscode.Disposable {
 
             const { visualWidth, blockRanges } = this.calculateSpectraBlocks(
                 matchText,
-                i, // Line number known from loop
+                i,
                 tabSize
             );
 
-            // Distribute blocks across decorators
             for (let j = 0; j < blockRanges.length; j++) {
                 const colorIndex = j % this.decorators.length;
                 spectra[colorIndex].push(blockRanges[j]);
             }
 
-            // Mark indentation errors
             if (!skipErrors && visualWidth % tabSize !== 0 && this.errorDecorator) {
                 errors.push(new vscode.Range(i, 0, i, matchText.length));
             }
@@ -310,10 +293,8 @@ export class IndentSpectra implements vscode.Disposable {
     ): void {
         if (this.isDisposed) return;
 
-        // Apply decorations
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.spectra[i]));
 
-        // Apply error and mixed decorations if they exist
         if (this.errorDecorator) {
             editor.setDecorations(this.errorDecorator, result.errors);
         }
@@ -355,23 +336,41 @@ export class IndentSpectra implements vscode.Disposable {
             return ignoredLines;
         }
 
-        // We still scan full text for multi-line block comments which are hard to detect line-by-line
         const text = doc.getText();
+        const lineStarts: number[] = [0];
+
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\n') {
+                lineStarts.push(i + 1);
+            }
+        }
+
+        const getLineIndex = (offset: number): number => {
+            let low = 0;
+            let high = lineStarts.length - 1;
+            while (low <= high) {
+                const mid = (low + high) >> 1;
+                if (lineStarts[mid] <= offset) {
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return high;
+        };
 
         for (const regex of this.compiledIgnorePatterns) {
             regex.lastIndex = 0;
             let match: RegExpExecArray | null;
 
             while ((match = regex.exec(text)) !== null) {
-                const startLine = doc.positionAt(match.index).line;
-                const endLine = doc.positionAt(match.index + match[0].length).line;
+                const startLine = getLineIndex(match.index);
+                const endLine = getLineIndex(match.index + match[0].length);
 
-                if (endLine - startLine > MAX_IGNORED_LINE_SPAN) {
-                    continue;
-                }
-
-                for (let i = startLine; i <= endLine; i++) {
-                    ignoredLines.add(i);
+                if (endLine - startLine <= MAX_IGNORED_LINE_SPAN) {
+                    for (let i = startLine; i <= endLine; i++) {
+                        ignoredLines.add(i);
+                    }
                 }
 
                 if (match[0].length === 0) {
@@ -396,20 +395,18 @@ export class IndentSpectra implements vscode.Disposable {
             const char = text[i];
             const isTab = char === '\t';
 
-            // Calculate visual width for this character
             const charVisualWidth = isTab
                 ? tabSize - (visualWidth % tabSize)
                 : 1;
 
             visualWidth += charVisualWidth;
 
-            // Complete a block when we reach a multiple of tabSize
             if (visualWidth % tabSize === 0) {
                 const blockEndCharIndex = i + 1;
 
                 blockRanges.push(new vscode.Range(
                     line,
-                    currentBlockStartCharIndex, // Start relative to line start (0)
+                    currentBlockStartCharIndex,
                     line,
                     blockEndCharIndex
                 ));
@@ -417,7 +414,6 @@ export class IndentSpectra implements vscode.Disposable {
             }
         }
 
-        // Handle incomplete final block (remainder)
         if (currentBlockStartCharIndex < text.length) {
             blockRanges.push(new vscode.Range(
                 line,
