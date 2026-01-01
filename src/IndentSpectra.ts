@@ -1,24 +1,8 @@
 import * as vscode from 'vscode';
-import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
+import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManager';
 
-const DEFAULT_TAB_SIZE = 4;
 const MAX_IGNORED_LINE_SPAN = 2000;
 const CHUNK_SIZE_LINES = 1000;
-const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const RGBA_COLOR_REGEX = /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
-
-interface IndentSpectraConfig {
-    updateDelay: number;
-    colorPreset: PaletteKey | 'custom';
-    colors: string[];
-    errorColor: string;
-    mixColor: string;
-    ignorePatterns: string[];
-    ignoredLanguages: Set<string>;
-    ignoreErrorLanguages: Set<string>;
-    indicatorStyle: 'classic' | 'light';
-    lightIndicatorWidth: number;
-}
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
@@ -34,34 +18,12 @@ interface LineAnalysis {
     isIgnored: boolean;
 }
 
-function isValidColor(color: string): boolean {
-    if (!color || typeof color !== 'string') return false;
-    const trimmed = color.trim();
-    return HEX_COLOR_REGEX.test(trimmed) || RGBA_COLOR_REGEX.test(trimmed) || CSS_NAMED_COLORS.has(trimmed.toLowerCase());
-}
-
-function loadConfigurationFromVSCode(): IndentSpectraConfig {
-    const config = vscode.workspace.getConfiguration('indentSpectra');
-    return {
-        updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
-        colorPreset: config.get<PaletteKey | 'custom'>('colorPreset', 'universal'),
-        colors: config.get<string[]>('colors', []),
-        errorColor: config.get<string>('errorColor', ''),
-        mixColor: config.get<string>('mixColor', ''),
-        ignorePatterns: config.get<string[]>('ignorePatterns', []),
-        ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
-        ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
-        indicatorStyle: config.get<'classic' | 'light'>('indicatorStyle', 'classic'),
-        lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1))
-    };
-}
-
 export class IndentSpectra implements vscode.Disposable {
     private decorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
-    private config: IndentSpectraConfig;
-    private compiledIgnorePatterns: RegExp[] = [];
+
+    private configManager: ConfigurationManager;
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
     private decoratorCacheKey: string | null = null;
@@ -69,19 +31,20 @@ export class IndentSpectra implements vscode.Disposable {
     private cancellationSource?: vscode.CancellationTokenSource;
 
     constructor() {
-        this.config = loadConfigurationFromVSCode();
-        this.reloadConfig();
+        this.configManager = new ConfigurationManager();
+        this.configManager.onDidChangeConfig(() => this.handleConfigChange());
+        this.initializeDecorators();
     }
 
-    public reloadConfig(): void {
+    private handleConfigChange(): void {
         if (this.isDisposed) return;
-        this.config = loadConfigurationFromVSCode();
-        this.compileIgnorePatterns(this.config.ignorePatterns);
 
-        const newCacheKey = this.computeDecoratorCacheKey(this.config);
+        const config = this.configManager.current;
+        const newCacheKey = this.computeDecoratorCacheKey(config);
+
         if (newCacheKey !== this.decoratorCacheKey) {
             this.disposeDecorators();
-            this.initializeDecorators(this.config);
+            this.initializeDecorators();
             this.decoratorCacheKey = newCacheKey;
         }
 
@@ -90,10 +53,8 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
-        const colors = this.resolveColorPalette(config);
         return JSON.stringify({
-            preset: config.colorPreset,
-            colors,
+            colors: config.colors,
             errorColor: config.errorColor,
             mixColor: config.mixColor,
             style: config.indicatorStyle,
@@ -101,59 +62,34 @@ export class IndentSpectra implements vscode.Disposable {
         });
     }
 
-    private compileIgnorePatterns(patternStrings: string[]): void {
-        this.compiledIgnorePatterns = patternStrings
-            .map(pattern => {
-                try {
-                    let source = pattern;
-                    let existingFlags = '';
-                    const match = pattern.match(/^\/(.+)\/([a-z]*)$/i);
-                    if (match) {
-                        source = match[1];
-                        existingFlags = match[2];
-                    }
-                    const flags = new Set(existingFlags.toLowerCase().split(''));
-                    flags.add('g');
-                    flags.add('m');
-                    return new RegExp(source, Array.from(flags).join(''));
-                } catch (e) {
-                    console.warn(`[IndentSpectra] Invalid pattern: ${pattern}`, e);
-                    return null;
-                }
-            })
-            .filter((r): r is RegExp => r !== null);
-    }
-
-    private initializeDecorators(config: IndentSpectraConfig): void {
+    private initializeDecorators(): void {
         if (this.isDisposed) return;
-        const colors = this.resolveColorPalette(config);
+        const config = this.configManager.current;
+
         const options = (color: string): vscode.DecorationRenderOptions =>
             config.indicatorStyle === 'light'
                 ? { borderWidth: `0 0 0 ${config.lightIndicatorWidth}px`, borderStyle: 'solid', borderColor: color }
                 : { backgroundColor: color };
 
-        this.decorators = colors.map(color => vscode.window.createTextEditorDecorationType(options(color)));
+        this.decorators = config.colors.map(color => vscode.window.createTextEditorDecorationType(options(color)));
 
-        if (config.errorColor && isValidColor(config.errorColor)) {
+        if (config.errorColor) {
             this.errorDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.errorColor });
         }
-        if (config.mixColor && isValidColor(config.mixColor)) {
+        if (config.mixColor) {
             this.mixDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.mixColor });
         }
     }
 
-    private resolveColorPalette(config: IndentSpectraConfig): string[] {
-        if (config.colorPreset === 'custom') {
-            const validColors = config.colors.filter(isValidColor);
-            return validColors.length > 0 ? validColors : PALETTES.universal;
-        }
-        return PALETTES[config.colorPreset] || PALETTES.universal;
+    public reloadConfig(): void {
+        this.configManager.load();
     }
 
     public dispose(): void {
         this.isDisposed = true;
         this.disposeDecorators();
         this.cancelCurrentWork();
+        this.configManager.dispose();
         if (this.timeout) clearTimeout(this.timeout);
         this.lineCache.clear();
     }
@@ -187,7 +123,7 @@ export class IndentSpectra implements vscode.Disposable {
             this.cancelCurrentWork();
             this.cancellationSource = new vscode.CancellationTokenSource();
             await this.updateAll(this.cancellationSource.token);
-        }, this.config.updateDelay);
+        }, this.configManager.current.updateDelay);
     }
 
     private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
@@ -214,10 +150,11 @@ export class IndentSpectra implements vscode.Disposable {
 
     private async processEditor(editor: vscode.TextEditor, token: vscode.CancellationToken): Promise<void> {
         const doc = editor.document;
-        if (this.config.ignoredLanguages.has(doc.languageId)) return;
+        const config = this.configManager.current;
+        if (config.ignoredLanguages.has(doc.languageId)) return;
 
         const tabSize = this.resolveTabSize(editor);
-        const skipErrors = this.config.ignoreErrorLanguages.has(doc.languageId);
+        const skipErrors = config.ignoreErrorLanguages.has(doc.languageId);
 
         const result = await this.analyzeIndentation(doc, tabSize, skipErrors, token);
         if (result && !token.isCancellationRequested) {
@@ -232,8 +169,8 @@ export class IndentSpectra implements vscode.Disposable {
         token: vscode.CancellationToken
     ): Promise<IndentationAnalysisResult | null> {
         const uri = doc.uri.toString();
-        let cache = this.lineCache.get(uri);
         const lineCount = doc.lineCount;
+        let cache = this.lineCache.get(uri);
 
         if (!cache || cache.length !== lineCount) {
             cache = new Array(lineCount).fill(undefined);
@@ -250,8 +187,7 @@ export class IndentSpectra implements vscode.Disposable {
         let lastYieldTime = performance.now();
 
         for (let i = 0; i < lineCount; i++) {
-            // Yield to event loop only if the work exceeds the 10ms budget
-            if (i % 1000 === 0 && (performance.now() - lastYieldTime) > 10) {
+            if (i % CHUNK_SIZE_LINES === 0 && (performance.now() - lastYieldTime) > 10) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 if (token.isCancellationRequested) return null;
                 lastYieldTime = performance.now();
@@ -319,13 +255,14 @@ export class IndentSpectra implements vscode.Disposable {
     private resolveTabSize(editor: vscode.TextEditor): number {
         const size = editor.options.tabSize;
         if (typeof size === 'number') return size;
-        if (typeof size === 'string') return parseInt(size, 10) || DEFAULT_TAB_SIZE;
-        return vscode.workspace.getConfiguration('editor').get<number>('tabSize') || DEFAULT_TAB_SIZE;
+        if (typeof size === 'string') return parseInt(size, 10) || 4;
+        return vscode.workspace.getConfiguration('editor').get<number>('tabSize') || 4;
     }
 
     private async identifyIgnoredLines(doc: vscode.TextDocument, token: vscode.CancellationToken): Promise<Set<number>> {
         const ignoredLines = new Set<number>();
-        if (this.compiledIgnorePatterns.length === 0) return ignoredLines;
+        const patterns = this.configManager.current.compiledPatterns;
+        if (patterns.length === 0) return ignoredLines;
 
         const text = doc.getText();
         const lineStarts: number[] = [0];
@@ -345,13 +282,12 @@ export class IndentSpectra implements vscode.Disposable {
 
         let lastYieldTime = performance.now();
 
-        for (const regex of this.compiledIgnorePatterns) {
+        for (const regex of patterns) {
             regex.lastIndex = 0;
             let match: RegExpExecArray | null;
             let matchCount = 0;
 
             while ((match = regex.exec(text)) !== null) {
-                // Yield to event loop only if the work exceeds the 10ms budget
                 if (++matchCount % 100 === 0 && (performance.now() - lastYieldTime) > 10) {
                     await new Promise(resolve => setTimeout(resolve, 0));
                     if (token.isCancellationRequested) return ignoredLines;
