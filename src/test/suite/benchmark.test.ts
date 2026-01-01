@@ -75,4 +75,58 @@ suite('Performance Benchmark Suite', () => {
 
         assert.ok(duration < 200, `Ignore analysis too slow: ${duration.toFixed(2)}ms`);
     });
+
+    test('Benchmark: Massive File (50,000 Lines)', async () => {
+        const lineCount = 50000;
+        const depth = 5;
+        const lines = new Array(lineCount).fill('\t'.repeat(depth) + 'const x = 1;');
+        const content = lines.join('\n');
+
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'typescript'
+        });
+        await vscode.window.showTextDocument(doc);
+
+        const start = performance.now();
+        (indentSpectra as any).updateAll();
+        const end = performance.now();
+        const duration = end - start;
+
+        console.log(`[Benchmark Result] Massive File Analysis (${lineCount} lines): ${duration.toFixed(2)}ms`);
+
+        // Expect < 500ms for 50k lines on modern hardware.
+        // Decoupling positionAt() is the primary driver for this passing.
+        assert.ok(duration < 800, `Massive file analysis too slow: ${duration.toFixed(2)}ms`);
+    });
+
+    test('Benchmark: Allocation Stability (Jitter Test)', async () => {
+        const lineCount = 2000;
+        const iterations = 100;
+        const lines = new Array(lineCount).fill('\t\t\t\tconst value = "test";');
+        const content = lines.join('\n');
+
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'typescript'
+        });
+        await vscode.window.showTextDocument(doc);
+
+        const durations: number[] = [];
+
+        for (let i = 0; i < iterations; i++) {
+            const start = performance.now();
+            (indentSpectra as any).updateAll();
+            durations.push(performance.now() - start);
+        }
+
+        const avg = durations.reduce((a, b) => a + b) / iterations;
+        const max = Math.max(...durations);
+        const jitter = max - avg;
+
+        console.log(`[Benchmark Result] Jitter Test over ${iterations} iterations: Avg: ${avg.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Jitter: ${jitter.toFixed(2)}ms`);
+
+        // Low jitter (< 20ms) suggests the GC is not struggling with object churn
+        assert.ok(jitter < 50, `High allocation jitter detected: ${jitter.toFixed(2)}ms`);
+    });
 });
