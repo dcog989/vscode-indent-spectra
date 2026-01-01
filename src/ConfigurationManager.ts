@@ -33,7 +33,6 @@ export class ConfigurationManager {
 
     public load(): void {
         const config = vscode.workspace.getConfiguration('indentSpectra');
-
         const rawPreset = config.get<PaletteKey | 'custom'>('colorPreset', 'universal');
         const rawColors = config.get<string[]>('colors', []);
         const sanitizedColors = this.resolveColors(rawPreset, rawColors);
@@ -75,9 +74,7 @@ export class ConfigurationManager {
     private isValidColor(color: string): boolean {
         if (!color || typeof color !== 'string') return false;
         const trimmed = color.trim();
-        return HEX_COLOR_REGEX.test(trimmed) ||
-            RGBA_COLOR_REGEX.test(trimmed) ||
-            CSS_NAMED_COLORS.has(trimmed.toLowerCase());
+        return HEX_COLOR_REGEX.test(trimmed) || RGBA_COLOR_REGEX.test(trimmed) || CSS_NAMED_COLORS.has(trimmed.toLowerCase());
     }
 
     private compilePatterns(patterns: string[]): RegExp[] {
