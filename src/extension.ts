@@ -8,8 +8,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(
-            () => {
-                indentSpectra?.triggerUpdate();
+            (editor) => {
+                if (editor) {
+                    indentSpectra?.clearAppliedState(editor.document.uri);
+                }
+                indentSpectra?.triggerUpdate(undefined, true);
             }
         ),
 

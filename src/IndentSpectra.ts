@@ -99,6 +99,10 @@ export class IndentSpectra implements vscode.Disposable {
         this.lastAppliedState.delete(uriString);
     }
 
+    public clearAppliedState(uri: vscode.Uri): void {
+        this.lastAppliedState.delete(uri.toString());
+    }
+
     public dispose(): void {
         this.isDisposed = true;
         this.disposeDecorators();
@@ -108,6 +112,7 @@ export class IndentSpectra implements vscode.Disposable {
         this.lineCache.clear();
         this.ignoredLinesCache.clear();
         this.lastAppliedState.clear();
+        this.lastTabSize.clear();
     }
 
     private cancelCurrentWork(): void {
@@ -127,19 +132,28 @@ export class IndentSpectra implements vscode.Disposable {
         this.mixDecorator = undefined;
     }
 
-    public triggerUpdate(event?: vscode.TextDocumentChangeEvent): void {
+    public triggerUpdate(event?: vscode.TextDocumentChangeEvent, immediate = false): void {
         if (this.isDisposed) return;
-        if (this.timeout) clearTimeout(this.timeout);
+        if (this.timeout) {
+            clearTimeout(this.timeout);
+            this.timeout = null;
+        }
 
         if (event) {
             this.applyIncrementalChangeToCache(event);
         }
 
-        this.timeout = setTimeout(async () => {
+        const run = async () => {
             this.cancelCurrentWork();
             this.cancellationSource = new vscode.CancellationTokenSource();
             await this.updateAll(this.cancellationSource.token);
-        }, this.configManager.current.updateDelay);
+        };
+
+        if (immediate) {
+            run();
+        } else {
+            this.timeout = setTimeout(run, this.configManager.current.updateDelay);
+        }
     }
 
     private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
@@ -178,7 +192,9 @@ export class IndentSpectra implements vscode.Disposable {
 
         const uri = doc.uri.toString();
         const tabSize = this.resolveTabSize(editor);
-        const stateKey = `${doc.version}-${tabSize}-${JSON.stringify(editor.visibleRanges)}`;
+
+        const ranges = editor.visibleRanges.length > 0 ? editor.visibleRanges : [];
+        const stateKey = `${doc.version}-${tabSize}-${JSON.stringify(ranges)}`;
 
         if (this.lastAppliedState.get(uri) === stateKey) return;
 
@@ -189,7 +205,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         const skipErrors = config.ignoreErrorLanguages.has(doc.languageId);
 
-        const result = await this.analyzeIndentation(doc, tabSize, skipErrors, editor.visibleRanges, token);
+        const result = await this.analyzeIndentation(doc, tabSize, skipErrors, ranges, token);
         if (result && !token.isCancellationRequested) {
             this.applyDecorations(editor, result);
             this.lastAppliedState.set(uri, stateKey);
@@ -224,11 +240,15 @@ export class IndentSpectra implements vscode.Disposable {
         const mixed: vscode.Range[] = [];
 
         const linesToProcess = new Set<number>();
-        for (const range of visibleRanges) {
-            const start = Math.max(0, range.start.line - VISIBLE_LINE_BUFFER);
-            const end = Math.min(lineCount - 1, range.end.line + VISIBLE_LINE_BUFFER);
-            for (let i = start; i <= end; i++) {
-                linesToProcess.add(i);
+
+        if (visibleRanges.length === 0 || (visibleRanges.length === 1 && visibleRanges[0].isEmpty)) {
+            const end = Math.min(lineCount - 1, 100);
+            for (let i = 0; i <= end; i++) linesToProcess.add(i);
+        } else {
+            for (const range of visibleRanges) {
+                const start = Math.max(0, range.start.line - VISIBLE_LINE_BUFFER);
+                const end = Math.min(lineCount - 1, range.end.line + VISIBLE_LINE_BUFFER);
+                for (let i = start; i <= end; i++) linesToProcess.add(i);
             }
         }
 
