@@ -45,6 +45,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
         ),
 
+        vscode.workspace.onDidCloseTextDocument(
+            (doc) => {
+                indentSpectra?.clearCache(doc.uri);
+            }
+        ),
+
         vscode.workspace.onDidChangeConfiguration(
             (event) => {
                 if (event.affectsConfiguration('indentSpectra')) {

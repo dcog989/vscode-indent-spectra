@@ -87,6 +87,12 @@ export class IndentSpectra implements vscode.Disposable {
         this.configManager.load();
     }
 
+    public clearCache(uri: vscode.Uri): void {
+        const uriString = uri.toString();
+        this.lineCache.delete(uriString);
+        this.ignoredLinesCache.delete(uriString);
+    }
+
     public dispose(): void {
         this.isDisposed = true;
         this.disposeDecorators();
