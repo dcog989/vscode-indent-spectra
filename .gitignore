@@ -30,7 +30,6 @@ out/
 .env
 .env.local
 # Editors
-# .vscode/ - Keep this for project configuration
 *.swp
 *.swo
 # Python

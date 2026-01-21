@@ -9,7 +9,6 @@
 .scripts/
 .tests/
 .vscode-test/
-.vscode/
 **/*.map
 **/*.ts
 **/*.tsbuildinfo
