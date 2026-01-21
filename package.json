@@ -1,144 +1,144 @@
 {
-    "name": "indent-spectra",
-    "displayName": "Indent Spectra",
-    "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-    "version": "1.3.1",
-    "publisher": "dcog989",
-    "icon": "assets/icon.png",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/dcog989/vscode-indent-spectra.git"
-    },
-    "bugs": {
-        "url": "https://github.com/dcog989/vscode-indent-spectra/issues"
-    },
-    "homepage": "https://github.com/dcog989/vscode-indent-spectra/blob/main/README.md",
-    "engines": {
-        "vscode": "^1.107.1"
-    },
-    "categories": [
-        "Formatters",
-        "Visualization"
-    ],
-    "activationEvents": [
-        "onLanguage"
-    ],
-    "main": "./dist/extension.js",
-    "browser": "./dist/extension.js",
-    "capabilities": {
-        "virtualWorkspaces": true,
-        "untrustedWorkspaces": {
-            "supported": true
-        }
-    },
-    "contributes": {
-        "configuration": {
-            "type": "object",
-            "title": "Indent Spectra",
-            "properties": {
-                "indentSpectra.updateDelay": {
-                    "type": "integer",
-                    "default": 100,
-                    "minimum": 10,
-                    "description": "Delay in ms before updating decorations (debouncing)."
-                },
-                "indentSpectra.colorPreset": {
-                    "type": "string",
-                    "enum": [
-                        "universal",
-                        "protan-deuteran",
-                        "tritan",
-                        "cool",
-                        "warm",
-                        "custom"
-                    ],
-                    "default": "universal",
-                    "description": "Pre-defined color palettes. Set to 'custom' to use the 'colors' array below."
-                },
-                "indentSpectra.colors": {
-                    "type": "array",
-                    "default": [
-                        "rgba(255, 215, 0, 0.1)",
-                        "rgba(65, 105, 225, 0.1)",
-                        "rgba(255, 105, 180, 0.1)",
-                        "rgba(0, 255, 255, 0.1)"
-                    ],
-                    "description": "Custom colors array. Supports hex, rgb/rgba, and CSS named colors."
-                },
-                "indentSpectra.errorColor": {
-                    "type": "string",
-                    "default": "rgba(200, 50, 50, 0.5)",
-                    "description": "Color for indentation errors."
-                },
-                "indentSpectra.mixColor": {
-                    "type": "string",
-                    "default": "rgba(150, 50, 150, 0.6)",
-                    "description": "Color for mixed tabs and spaces."
-                },
-                "indentSpectra.ignorePatterns": {
-                    "type": "array",
-                    "default": [
-                        "/^[ \t]*\\*(?!\\/)/gm"
-                    ],
-                    "description": "Regex patterns to ignore (e.g. JSDoc)."
-                },
-                "indentSpectra.ignoredLanguages": {
-                    "type": "array",
-                    "default": [
-                        "plaintext",
-                        "markdown"
-                    ],
-                    "description": "Languages to disable the extension for."
-                },
-                "indentSpectra.indicatorStyle": {
-                    "type": "string",
-                    "enum": [
-                        "classic",
-                        "light"
-                    ],
-                    "default": "classic",
-                    "description": "Render style: 'classic' (background) or 'light' (vertical line)."
-                },
-                "indentSpectra.lightIndicatorWidth": {
-                    "type": "number",
-                    "default": 1,
-                    "minimum": 1,
-                    "maximum": 10,
-                    "description": "Line width for 'light' indicator style."
-                },
-                "indentSpectra.ignoreErrorLanguages": {
-                    "type": "array",
-                    "default": [
-                        "markdown"
-                    ],
-                    "description": "Languages where indentation errors should not be highlighted."
-                }
-            }
-        }
-    },
-    "scripts": {
-        "vscode:prepublish": "npm run bundle",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "bundle": "npm run check-types && npm run lint && node esbuild.js --production",
-        "bundle-watch": "node esbuild.js --watch",
-        "check-types": "tsc --noEmit",
-        "lint": "eslint src",
-        "test": "npm run bundle && npm run compile && node ./out/test/runTest.js",
-        "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\""
-    },
-    "devDependencies": {
-        "@types/mocha": "^10.0",
-        "@types/node": "^25.0",
-        "@types/vscode": "^1.107",
-        "@typescript-eslint/eslint-plugin": "^8.51",
-        "@typescript-eslint/parser": "^8.51",
-        "@vscode/test-electron": "^2.5",
-        "esbuild": "^0.27",
-        "eslint": "^9.39",
-        "glob": "^13.0",
-        "globals": "^16.5.0",
-        "mocha": "^11.7",
-        "typescript": "^5.9"
+  "name": "indent-spectra",
+  "displayName": "Indent Spectra",
+  "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
+  "version": "1.3.1",
+  "publisher": "dcog989",
+  "icon": "assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcog989/vscode-indent-spectra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dcog989/vscode-indent-spectra/issues"
+  },
+  "homepage": "https://github.com/dcog989/vscode-indent-spectra/blob/main/README.md",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Formatters",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onLanguage"
+  ],
+  "main": "./dist/extension.js",
+  "browser": "./dist/extension.js",
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": true
     }
+  },
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Indent Spectra",
+      "properties": {
+        "indentSpectra.updateDelay": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 10,
+          "description": "Delay in ms before updating decorations (debouncing)."
+        },
+        "indentSpectra.colorPreset": {
+          "type": "string",
+          "enum": [
+            "universal",
+            "protan-deuteran",
+            "tritan",
+            "cool",
+            "warm",
+            "custom"
+          ],
+          "default": "universal",
+          "description": "Pre-defined color palettes. Set to 'custom' to use the 'colors' array below."
+        },
+        "indentSpectra.colors": {
+          "type": "array",
+          "default": [
+            "rgba(255, 215, 0, 0.1)",
+            "rgba(65, 105, 225, 0.1)",
+            "rgba(255, 105, 180, 0.1)",
+            "rgba(0, 255, 255, 0.1)"
+          ],
+          "description": "Custom colors array. Supports hex, rgb/rgba, and CSS named colors."
+        },
+        "indentSpectra.errorColor": {
+          "type": "string",
+          "default": "rgba(200, 50, 50, 0.5)",
+          "description": "Color for indentation errors."
+        },
+        "indentSpectra.mixColor": {
+          "type": "string",
+          "default": "rgba(150, 50, 150, 0.6)",
+          "description": "Color for mixed tabs and spaces."
+        },
+        "indentSpectra.ignorePatterns": {
+          "type": "array",
+          "default": [
+            "/^[ \t]*\\*(?!\\/)/gm"
+          ],
+          "description": "Regex patterns to ignore (e.g. JSDoc)."
+        },
+        "indentSpectra.ignoredLanguages": {
+          "type": "array",
+          "default": [
+            "plaintext",
+            "markdown"
+          ],
+          "description": "Languages to disable the extension for."
+        },
+        "indentSpectra.indicatorStyle": {
+          "type": "string",
+          "enum": [
+            "classic",
+            "light"
+          ],
+          "default": "classic",
+          "description": "Render style: 'classic' (background) or 'light' (vertical line)."
+        },
+        "indentSpectra.lightIndicatorWidth": {
+          "type": "number",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Line width for 'light' indicator style."
+        },
+        "indentSpectra.ignoreErrorLanguages": {
+          "type": "array",
+          "default": [
+            "markdown"
+          ],
+          "description": "Languages where indentation errors should not be highlighted."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "bun run bundle",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "bundle": "bun run check-types && bun run lint && node esbuild.js --production",
+    "bundle-watch": "node esbuild.js --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "bun run bundle && bun run compile && node ./out/test/runTest.js",
+    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\""
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.0.9",
+    "@types/vscode": "^1.108.1",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "glob": "^13.0.0",
+    "globals": "^16.5.0",
+    "mocha": "^11.7.5",
+    "typescript": "^5.9.3"
+  }
 }

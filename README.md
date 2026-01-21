@@ -22,7 +22,7 @@ It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern]
 Choose from color palettes designed from first principles using color theory frameworks [Okabe-Ito](https://easystats.github.io/see/reference/scale_color_okabeito.html), [Temperature Alternation](https://en.wikipedia.org/wiki/Color_theory#Warm_vis-_cool_colors), and [Analogous Harmony](https://www.colorpsychology.org/analogous-colors/).
 
 | Preset                  | Description                                                           |
-| :---------------------- | :-------------------------------------------------------------------- |
+|-------------------------|-----------------------------------------------------------------------|
 | **Universal** (Default) | Excellent contrast (Gold, Royal Blue, Pink, Cyan), optimized for all. |
 | **Protan/Deuteran**     | Safe for Red/Green color blindness. Uses Blue/Yellow/Gray scales.     |
 | **Tritan**              | Safe for Blue color blindness. Uses Red/Teal/Gray scales.             |
@@ -61,7 +61,7 @@ Customize *Indent Spectra* in your `settings.json` or via the Settings UI:
 
 ## Requirements
 
-VS Code 1.106.0+. Probably works on previous versions, but not tested.
+VS Code 1.107+.
 
 ## Acknowledgements
 

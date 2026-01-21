@@ -1,0 +1,25 @@
+{
+  "trailingComma": "all",
+  "bracketSameLine": true,
+  "tabWidth": 4,
+  "semi": true,
+  "singleQuote": true,
+  "printWidth": 100,
+  "useTabs": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": "*.svelte",
+      "options": {
+        "parser": "svelte"
+      }
+    },
+    {
+      "files": ["*.yml", "*.yaml", "package.json"],
+      "options": {
+        "tabWidth": 2
+      }
+    }
+  ]
+}

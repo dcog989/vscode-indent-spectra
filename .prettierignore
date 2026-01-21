@@ -1,0 +1,52 @@
+# --- General / Standard ---
+.turbo/
+.vercel/
+build/
+bun.lock
+dist/
+node_modules/
+out/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# --- Rust ---
+# Exclude the target directory where compiled binaries and build cache live
+src-tauri/gen/
+src-tauri/target/
+**/*.rs
+
+# --- Python ---
+# Exclude virtual environments and bytecode cache
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.tox/
+# Prettier doesn't format Python by default, but this prevents unnecessary scanning
+**/*.py
+
+# --- .NET ---
+# Exclude build artefacts and user-specific settings
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.sln.dotsettings.user
+
+# --- Logs & OS ---
+*.log
+.DS_Store
+Thumbs.db
+
+# --- Project Stuff ---
+.ai/
+.assets/
+.claude/
+.docs/
+.git/
+.husky/
