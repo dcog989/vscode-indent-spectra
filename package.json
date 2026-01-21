@@ -112,6 +112,18 @@
             "markdown"
           ],
           "description": "Languages where indentation errors should not be highlighted."
+        },
+        "indentSpectra.highlightActiveLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Brighten indentation colors on the line containing the cursor."
+        },
+        "indentSpectra.activeLineBrightness": {
+          "type": "number",
+          "default": 1.5,
+          "minimum": 1.0,
+          "maximum": 3.0,
+          "description": "Brightness multiplier for active line indentation (1.0 = no change, higher = brighter)."
         }
       }
     }

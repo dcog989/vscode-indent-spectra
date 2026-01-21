@@ -3,18 +3,20 @@
         "module": "commonjs",
         "target": "es2024",
         "outDir": "out",
-        "lib": [
-            "es2024"
-        ],
+        "lib": ["es2024"],
         "sourceMap": true,
         "rootDir": "src",
         "strict": true,
         "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitOverride": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "forceConsistentCasingInFileNames": true
     },
-    "exclude": [
-        "node_modules"
-    ]
+    "exclude": ["node_modules", "dist", "out", ".vscode-test"]
 }

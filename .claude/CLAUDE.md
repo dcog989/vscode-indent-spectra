@@ -4,65 +4,140 @@ Indent Spectra is an extension for VS Code that colorises line indentation to ai
 
 ## Tech Stack
 
-- **Tauri** (v2.9) - Desktop framework wrapping the web frontend
-- **Rust** (2024 / v1.92) - Backend logic, Markdown processing, file I/O
-- **Svelte** (v5.47) - Frontend framework with Svelte 5 runes (`.svelte.ts` files)
-- **TypeScript** (v5.9) - Type-safe frontend code
-- **Tailwind** (v4.1) - Utility-first CSS
-- **CodeMirror** (v6.0) - Code editor component
-- **SQLite** (v3.51) - Local database for metadata/bookmarks
+- **TypeScript 5.9** with strict mode enabled
+- **VS Code Extension API** (^1.108.1)
+- **Node.js** runtime (ES2024 target)
+- **esbuild** for bundling (production builds)
+- **Bun** for package management and scripts
+- **Mocha** for testing
+- **ESLint** for linting
 
 ## Entry Points
 
-### Frontend (SvelteKit)
+### Extension Entry Point
 
-- **`src/routes/+page.svelte`** - Main application page
-- **`src/routes/+layout.svelte`** - Root layout wrapper
-- **`src/lib/stores/state.svelte.ts`** - Centralized state tree (`appContext`)
-- **`src/lib/components/editor/Editor.svelte`** - Main editor component
-- **`src/lib/components/preview/Preview.svelte`** - Markdown preview component
+- **Main**: `src/extension.ts` - Exports `activate()` and `deactivate()` functions
+  - Creates `IndentSpectra` instance
+  - Sets up VS Code event listeners (document changes, editor changes, configuration changes)
+  - Manages extension lifecycle
 
-### Backend (Tauri/Rust)
+### Core Components
 
-- **`src-tauri/src/main.rs`** - Rust application entry point
-- **`src-tauri/src/commands/`** - Tauri command handlers (callable from frontend)
-- **`src-tauri/src/markdown/`** - Markdown processing logic
-- **`src-tauri/src/db/`** - SQLite database operations
+- **IndentSpectra** (`src/IndentSpectra.ts`) - Main rendering engine
+  - Manages decorators and caching
+  - Analyzes indentation patterns
+  - Applies decorations to visible text
+  - Handles incremental updates
+  
+- **ConfigurationManager** (`src/ConfigurationManager.ts`) - Configuration management
+  - Loads and validates settings from VS Code configuration
+  - Compiles regex patterns for ignored lines
+  - Provides color palette resolution
+  - Emits configuration change events
 
-### Key Architecture
+- **colors.ts** (`src/colors.ts`) - Color palettes and definitions
+  - Defines preset color palettes (universal, protan-deuteran, tritan, cool, warm)
+  - CSS named colors validation
 
-- **State Management**: Svelte 5 runes in `$lib/stores/*.svelte.ts` files, accessed via `appContext`
-- **Editor**: CodeMirror 6 configured in `$lib/components/editor/codemirror/`
-- **Backend Communication**: Tauri commands in `src-tauri/src/commands/` invoked via `invoke()` from frontend
-- **File System**: Handled by Tauri plugins and Rust backend (`$lib/utils/backend.ts` for frontend interface)
+### Build Output
+
+- **Bundled**: `dist/extension.js` (for both Node and browser)
+- **Compiled**: `out/` directory (TypeScript compilation for testing)
+
+## Key Architecture
+
+### Performance Optimizations
+
+1. **O(1) Lookups**: Uses `Set` for ignored lines instead of array searches
+2. **Incremental Caching**: Caches line analysis results per document URI
+3. **Smart Debouncing**: Configurable delay (default 100ms) before updating decorations
+4. **Chunked Processing**: Processes large files in 1000-line chunks with yielding
+5. **Visible Range Optimization**: Only processes visible lines + buffer (50 lines)
+6. **Cancellation Tokens**: Cancels in-progress work when new updates arrive
+
+### Caching Strategy
+
+- **lineCache**: Stores analyzed line data per document (blocks, visual width, flags)
+- **ignoredLinesCache**: Caches lines matching ignore patterns
+- **lastAppliedState**: Tracks last applied state to avoid redundant updates
+- **lastTabSize**: Tracks tab size changes to invalidate cache
+
+### Event Handling
+
+Extension responds to:
+- `onDidChangeActiveTextEditor` - Clear state, trigger update
+- `onDidChangeTextEditorOptions` - Trigger update
+- `onDidChangeTextEditorVisibleRanges` - Trigger update
+- `onDidChangeTextDocument` - Incremental cache update
+- `onDidOpenTextDocument` - Trigger update
+- `onDidCloseTextDocument` - Clear cache
+- `onDidChangeConfiguration` - Reload config
+
+### Decorator System
+
+- **Spectra decorators**: Array of decorators for indent levels (cycles through colors)
+- **Error decorator**: Highlights malformed indentation
+- **Mix decorator**: Highlights mixed tabs/spaces
+- **Styles**: Classic (background) or Light (border line)
 
 ## Coding Principles
 
-- Use current coding standards and patterns (Svelte 5 runes, modern TS/Rust)
+- Use current coding standards and patterns
 - KISS, Occam's razor, DRY, YAGNI
 - Optimize for actual and perceived performance
 - Self-documenting code via clear naming
 - Comments only for workarounds/complex logic
-- No magic numbers
-- **Do NOT create docs files** (summary, reference, testing, etc.) unless explicitly requested
+- No magic numbers - use constants like `CHUNK_SIZE_LINES`, `VISIBLE_LINE_BUFFER`
+- **Do NOT create docs files** (summary, reference, testing, etc.) unless explicitly instructed
 
 ## File System Access
 
-### Allowed Directories
+### Allowed
 
-- `.claude/`, `.github/`, `.husky/`, `.svelte-kit/`, `.vscode/`
-- `scripts/`, `src/`, `src-tauri/`, `static/`
-- Root config files: `.editorconfig`, `.gitignore`, `*.config.*`, `package.json`, `tsconfig.json`, etc.
+- `.claude/`, `.github/`, `.vscode/`
+- `scripts/`, `src/`
+- Root files: `README.md`, `.editorconfig`, `.gitignore`, `eslint.config.mjs`, `package.json`, `tsconfig.json`, etc.
 
 ### Disallowed
 
 - `.ai/`, `.assets/`, `.docs/`, `.git/`, `node_modules/`
 - `repomix.config.json`, `bun.lock`, `AGENTS.md`, `.repomixignore`
-- `src-tauri/Cargo.lock`, `src-tauri/target/`, `src-tauri/icons/`
 
 ## Common Patterns
 
-- **Adding a feature**: Update relevant store in `$lib/stores/`, add UI in `$lib/components/`, connect via event handlers
-- **Backend call**: Create Rust command in `src-tauri/src/commands/`, expose in `main.rs`, call via `invoke()` in frontend
-- **Editor extension**: Add to `$lib/utils/*Extension.ts`, configure in `$lib/components/editor/codemirror/config.ts`
-- **State access**: Import `appContext` from `$lib/stores/state.svelte.ts`, access as `appContext.editor.content`, etc.
+### Async Work with Cancellation
+```typescript
+this.cancellationSource = new vscode.CancellationTokenSource();
+await this.someAsyncWork(this.cancellationSource.token);
+// Check token.isCancellationRequested periodically
+```
+
+### Debounced Updates
+```typescript
+if (this.timeout) clearTimeout(this.timeout);
+this.timeout = setTimeout(() => this.update(), delay);
+```
+
+### Cache Invalidation
+```typescript
+// Clear all caches for a document
+this.lineCache.delete(uriString);
+this.ignoredLinesCache.delete(uriString);
+this.lastAppliedState.delete(uriString);
+```
+
+### Line Analysis Result Structure
+```typescript
+interface LineAnalysis {
+    blocks: number[];        // Character positions of indent boundaries
+    visualWidth: number;     // Visual width considering tab expansion
+    isMixed: boolean;        // Mixed tabs and spaces
+    isError: boolean;        // Incorrect indentation
+    isIgnored: boolean;      // Matches ignore pattern
+}
+```
+
+### Configuration Management
+- Always use `this.configManager.current` to access config
+- Listen to `configManager.onDidChangeConfig` for updates
+- Config changes trigger decorator recreation and cache clearing

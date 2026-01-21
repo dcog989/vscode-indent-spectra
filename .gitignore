@@ -30,7 +30,7 @@ out/
 .env
 .env.local
 # Editors
-.vscode/
+# .vscode/ - Keep this for project configuration
 *.swp
 *.swo
 # Python
@@ -50,6 +50,7 @@ Cargo.lock
 
 *.vsix
 .vscode-test/
+**/.vscode-test/
 coverage/
 .npmrc
 # Logs
