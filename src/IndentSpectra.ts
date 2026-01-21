@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { ConfigurationManager, IndentSpectraConfig } from './ConfigurationManager';
+import type { IndentSpectraConfig } from './ConfigurationManager';
+import { ConfigurationManager } from './ConfigurationManager';
 
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
@@ -7,6 +8,7 @@ const MASSIVE_FILE_THRESHOLD = 50000;
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
+    activeLevelSpectra: vscode.Range[][];
     errors: vscode.Range[];
     mixed: vscode.Range[];
 }
@@ -21,6 +23,7 @@ interface LineAnalysis {
 
 export class IndentSpectra implements vscode.Disposable {
     private decorators: vscode.TextEditorDecorationType[] = [];
+    private activeLevelDecorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
 
@@ -63,25 +66,97 @@ export class IndentSpectra implements vscode.Disposable {
             errorColor: config.errorColor,
             mixColor: config.mixColor,
             style: config.indicatorStyle,
-            width: config.lightIndicatorWidth
+            width: config.lightIndicatorWidth,
+            activeIndentBrightness: config.activeIndentBrightness,
         });
+    }
+
+    private brightenColor(color: string, scale: number): string {
+        if (scale === 0) return color;
+
+        let r = 0,
+            g = 0,
+            b = 0,
+            a = 0.1;
+        let matched = false;
+
+        const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
+        if (rgbaMatch) {
+            r = parseInt(rgbaMatch[1], 10);
+            g = parseInt(rgbaMatch[2], 10);
+            b = parseInt(rgbaMatch[3], 10);
+            a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+            matched = true;
+        } else if (color.startsWith('#')) {
+            let hex = color.slice(1);
+            if (hex.length === 3 || hex.length === 4) {
+                hex = hex
+                    .split('')
+                    .map((c) => c + c)
+                    .join('');
+            }
+            if (hex.length === 6 || hex.length === 8) {
+                r = parseInt(hex.slice(0, 2), 16);
+                g = parseInt(hex.slice(2, 4), 16);
+                b = parseInt(hex.slice(4, 6), 16);
+                a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+                matched = true;
+            }
+        }
+
+        if (!matched) return color;
+
+        const isLightTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light;
+        const normalizedScale = scale / 9;
+
+        const newAlpha = Math.min(1, a + normalizedScale * 0.7);
+
+        const target = isLightTheme ? 0 : 255;
+        const boost = (val: number): number =>
+            Math.round(val + (target - val) * normalizedScale * 0.5);
+
+        return `rgba(${boost(r)}, ${boost(g)}, ${boost(b)}, ${newAlpha})`;
     }
 
     private initializeDecorators(): void {
         if (this.isDisposed) return;
         const config = this.configManager.current;
-        const options = (color: string): vscode.DecorationRenderOptions =>
-            config.indicatorStyle === 'light'
-                ? { borderWidth: `0 0 0 ${config.lightIndicatorWidth}px`, borderStyle: 'solid', borderColor: color }
-                : { backgroundColor: color };
 
-        this.decorators = config.colors.map(color => vscode.window.createTextEditorDecorationType(options(color)));
+        const options = (color: string, isActive: boolean): vscode.DecorationRenderOptions => {
+            if (config.indicatorStyle === 'light') {
+                const width =
+                    isActive && config.activeIndentBrightness > 0
+                        ? config.lightIndicatorWidth + 1
+                        : config.lightIndicatorWidth;
+                return {
+                    borderWidth: `0 0 0 ${width}px`,
+                    borderStyle: 'solid',
+                    borderColor: color,
+                };
+            }
+            return { backgroundColor: color };
+        };
+
+        this.decorators = config.colors.map((color) =>
+            vscode.window.createTextEditorDecorationType(options(color, false)),
+        );
+
+        if (config.activeIndentBrightness > 0) {
+            this.activeLevelDecorators = config.colors.map((color) => {
+                const brightColor = this.brightenColor(color, config.activeIndentBrightness);
+                return vscode.window.createTextEditorDecorationType(options(brightColor, true));
+            });
+        }
 
         if (config.errorColor) {
-            this.errorDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.errorColor });
+            this.errorDecorator = vscode.window.createTextEditorDecorationType({
+                backgroundColor: config.errorColor,
+            });
         }
         if (config.mixColor) {
-            this.mixDecorator = vscode.window.createTextEditorDecorationType({ backgroundColor: config.mixColor });
+            this.mixDecorator = vscode.window.createTextEditorDecorationType({
+                backgroundColor: config.mixColor,
+            });
         }
     }
 
@@ -122,8 +197,10 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private disposeDecorators(): void {
-        this.decorators.forEach(d => d.dispose());
+        this.decorators.forEach((d) => d.dispose());
         this.decorators = [];
+        this.activeLevelDecorators.forEach((d) => d.dispose());
+        this.activeLevelDecorators = [];
         this.errorDecorator?.dispose();
         this.errorDecorator = undefined;
         this.mixDecorator?.dispose();
@@ -141,7 +218,7 @@ export class IndentSpectra implements vscode.Disposable {
             this.applyIncrementalChangeToCache(event);
         }
 
-        const run = async () => {
+        const run = async (): Promise<void> => {
             this.cancelCurrentWork();
             this.cancellationSource = new vscode.CancellationTokenSource();
             await this.updateAll(this.cancellationSource.token);
@@ -162,12 +239,14 @@ export class IndentSpectra implements vscode.Disposable {
         const cache = this.lineCache.get(uri);
         if (!cache) return;
 
-        const sortedChanges = [...event.contentChanges].sort((a, b) => b.range.start.line - a.range.start.line);
+        const sortedChanges = [...event.contentChanges].sort(
+            (a, b) => b.range.start.line - a.range.start.line,
+        );
 
         for (const change of sortedChanges) {
             const startLine = change.range.start.line;
             const endLine = change.range.end.line;
-            const linesAdded = (change.text.match(/\n/g) || []).length;
+            const linesAdded = (change.text.match(/\n/g) ?? []).length;
             const linesRemoved = endLine - startLine;
             cache.splice(startLine, linesRemoved + 1, ...new Array(linesAdded + 1).fill(undefined));
         }
@@ -181,7 +260,10 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    private async processEditor(editor: vscode.TextEditor, token: vscode.CancellationToken): Promise<void> {
+    private async processEditor(
+        editor: vscode.TextEditor,
+        token: vscode.CancellationToken,
+    ): Promise<void> {
         const doc = editor.document;
         const config = this.configManager.current;
         if (config.ignoredLanguages.has(doc.languageId)) return;
@@ -189,8 +271,12 @@ export class IndentSpectra implements vscode.Disposable {
         const uri = doc.uri.toString();
         const tabSize = this.resolveTabSize(editor);
         const ranges = editor.visibleRanges.length > 0 ? editor.visibleRanges : [];
-        const stateKey = `${doc.version}-${tabSize}-${JSON.stringify(ranges)}`;
 
+        const activeLine = config.activeIndentBrightness > 0 ? editor.selection.active.line : -1;
+        const activeChar =
+            config.activeIndentBrightness > 0 ? editor.selection.active.character : -1;
+
+        const stateKey = `${doc.version}-${tabSize}-${activeLine}-${activeChar}-${JSON.stringify(ranges)}`;
         if (this.lastAppliedState.get(uri) === stateKey) return;
 
         if (this.lastTabSize.get(uri) !== tabSize) {
@@ -198,7 +284,13 @@ export class IndentSpectra implements vscode.Disposable {
             this.lastTabSize.set(uri, tabSize);
         }
 
-        const result = await this.analyzeIndentation(doc, tabSize, config.ignoreErrorLanguages.has(doc.languageId), ranges, token);
+        const result = await this.analyzeIndentation(
+            editor,
+            tabSize,
+            config.ignoreErrorLanguages.has(doc.languageId),
+            ranges,
+            token,
+        );
         if (result && !token.isCancellationRequested) {
             this.applyDecorations(editor, result);
             this.lastAppliedState.set(uri, stateKey);
@@ -206,17 +298,19 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private async analyzeIndentation(
-        doc: vscode.TextDocument,
+        editor: vscode.TextEditor,
         tabSize: number,
         skipErrors: boolean,
         visibleRanges: readonly vscode.Range[],
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<IndentationAnalysisResult | null> {
+        const doc = editor.document;
+        const config = this.configManager.current;
         const uri = doc.uri.toString();
         const lineCount = doc.lineCount;
         let cache = this.lineCache.get(uri);
 
-        if (!cache || cache.length !== lineCount) {
+        if (cache?.length !== lineCount) {
             cache = new Array(lineCount).fill(undefined);
             this.lineCache.set(uri, cache);
         }
@@ -228,12 +322,88 @@ export class IndentSpectra implements vscode.Disposable {
             this.ignoredLinesCache.set(uri, ignoredLines);
         }
 
+        const activeLineNum = config.activeIndentBrightness > 0 ? editor.selection.active.line : -1;
+        let activeLevel = -1;
+        let blockStart = -1;
+        let blockEnd = -1;
+
+        if (activeLineNum !== -1) {
+            const activeLineData = this.getOrAnalyzeLine(
+                doc,
+                activeLineNum,
+                tabSize,
+                skipErrors,
+                ignoredLines.has(activeLineNum),
+            );
+            const cursorChar = editor.selection.active.character;
+            const indentEnd =
+                activeLineData.blocks.length > 0
+                    ? activeLineData.blocks[activeLineData.blocks.length - 1]
+                    : 0;
+
+            if (cursorChar < indentEnd) {
+                activeLevel = activeLineData.blocks.findIndex((end) => cursorChar < end);
+            } else {
+                let nextLevel = activeLineData.blocks.length;
+                for (let i = activeLineNum + 1; i < lineCount; i++) {
+                    const data = this.getOrAnalyzeLine(
+                        doc,
+                        i,
+                        tabSize,
+                        skipErrors,
+                        ignoredLines.has(i),
+                    );
+                    if (this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) continue;
+                    nextLevel = data.blocks.length;
+                    break;
+                }
+                activeLevel =
+                    nextLevel > activeLineData.blocks.length
+                        ? activeLineData.blocks.length
+                        : activeLineData.blocks.length - 1;
+            }
+
+            if (activeLevel !== -1) {
+                blockStart = activeLineNum;
+                blockEnd = activeLineNum;
+
+                for (let i = activeLineNum - 1; i >= 0; i--) {
+                    const data = this.getOrAnalyzeLine(
+                        doc,
+                        i,
+                        tabSize,
+                        skipErrors,
+                        ignoredLines.has(i),
+                    );
+                    const isExtra = this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i));
+                    if (!isExtra && data.blocks.length <= activeLevel) break;
+                    blockStart = i;
+                }
+                for (let i = activeLineNum + 1; i < lineCount; i++) {
+                    const data = this.getOrAnalyzeLine(
+                        doc,
+                        i,
+                        tabSize,
+                        skipErrors,
+                        ignoredLines.has(i),
+                    );
+                    const isExtra = this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i));
+                    if (!isExtra && data.blocks.length <= activeLevel) break;
+                    blockEnd = i;
+                }
+            }
+        }
+
         const spectra: vscode.Range[][] = Array.from({ length: this.decorators.length }, () => []);
+        const activeLevelSpectra: vscode.Range[][] = Array.from(
+            { length: this.decorators.length },
+            () => [],
+        );
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
         const linesToProcess = new Set<number>();
 
-        if (visibleRanges.length === 0 || (visibleRanges.length === 1 && visibleRanges[0].isEmpty)) {
+        if (visibleRanges.length === 0 || (visibleRanges[0]?.isEmpty ?? true)) {
             const end = Math.min(lineCount - 1, 100);
             for (let i = 0; i <= end; i++) linesToProcess.add(i);
         } else {
@@ -249,52 +419,88 @@ export class IndentSpectra implements vscode.Disposable {
 
         for (let idx = 0; idx < sortedLines.length; idx++) {
             const i = sortedLines[idx];
-            if (idx % CHUNK_SIZE_LINES === 0 && (performance.now() - lastYieldTime) > 10) {
-                await new Promise(resolve => setTimeout(resolve, 0));
+            if (idx % CHUNK_SIZE_LINES === 0 && performance.now() - lastYieldTime > 10) {
+                await new Promise((resolve) => setTimeout(resolve, 0));
                 if (token.isCancellationRequested) return null;
                 lastYieldTime = performance.now();
             }
 
             const isIgnored = ignoredLines.has(i);
-            let lineData = cache[i];
-
-            if (!lineData || lineData.isIgnored !== isIgnored) {
-                lineData = isIgnored ? { blocks: [], visualWidth: 0, isMixed: false, isError: false, isIgnored: true }
-                    : this.analyzeLine(doc.lineAt(i).text, tabSize, skipErrors, isIgnored);
-                cache[i] = lineData;
-            }
-
+            const lineData = this.getOrAnalyzeLine(doc, i, tabSize, skipErrors, isIgnored);
             if (lineData.isIgnored) continue;
+
+            const inActiveBlock = i >= blockStart && i <= blockEnd;
 
             for (let j = 0; j < lineData.blocks.length; j++) {
                 const start = j === 0 ? 0 : lineData.blocks[j - 1];
-                spectra[j % this.decorators.length].push(new vscode.Range(i, start, i, lineData.blocks[j]));
+                const range = new vscode.Range(i, start, i, lineData.blocks[j]);
+                const decoratorIndex = j % this.decorators.length;
+
+                if (inActiveBlock && j === activeLevel) {
+                    activeLevelSpectra[decoratorIndex].push(range);
+                } else {
+                    spectra[decoratorIndex].push(range);
+                }
             }
 
-            if (lineData.isError && this.errorDecorator) errors.push(new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] || 0));
-            if (lineData.isMixed && this.mixDecorator) mixed.push(new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] || 0));
+            if (lineData.isError && this.errorDecorator)
+                errors.push(
+                    new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] ?? 0),
+                );
+            if (lineData.isMixed && this.mixDecorator)
+                mixed.push(
+                    new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] ?? 0),
+                );
         }
 
-        return { spectra, errors, mixed };
+        return { spectra, activeLevelSpectra, errors, mixed };
     }
 
-    private analyzeLine(text: string, tabSize: number, skipErrors: boolean, isIgnored: boolean): LineAnalysis {
+    private getOrAnalyzeLine(
+        doc: vscode.TextDocument,
+        line: number,
+        tabSize: number,
+        skipErrors: boolean,
+        isIgnored: boolean,
+    ): LineAnalysis {
+        const uri = doc.uri.toString();
+        const cache = this.lineCache.get(uri);
+        if (cache?.[line] && cache[line]?.isIgnored === isIgnored) return cache[line]!;
+
+        const data = isIgnored
+            ? { blocks: [], visualWidth: 0, isMixed: false, isError: false, isIgnored: true }
+            : this.analyzeLine(doc.lineAt(line).text, tabSize, skipErrors, isIgnored);
+
+        if (cache) cache[line] = data;
+        return data;
+    }
+
+    private isEmptyOrIgnored(text: string, isIgnored: boolean): boolean {
+        return isIgnored || text.trim().length === 0;
+    }
+
+    private analyzeLine(
+        text: string,
+        tabSize: number,
+        skipErrors: boolean,
+        isIgnored: boolean,
+    ): LineAnalysis {
         const blocks: number[] = [];
-        let visualWidth = 0, isMixed = false, isError = false;
+        let visualWidth = 0,
+            isMixed = false,
+            isError = false;
         const indentMatch = text.match(/^[\t ]+/);
         if (indentMatch) {
             const matchText = indentMatch[0];
             isMixed = matchText.includes('\t') && matchText.includes(' ');
-            let currentStart = 0;
             for (let i = 0; i < matchText.length; i++) {
-                visualWidth += (matchText[i] === '\t' ? tabSize - (visualWidth % tabSize) : 1);
-                if (visualWidth % tabSize === 0) {
-                    blocks.push(i + 1);
-                    currentStart = i + 1;
-                }
+                visualWidth += matchText[i] === '\t' ? tabSize - (visualWidth % tabSize) : 1;
+                if (visualWidth % tabSize === 0) blocks.push(i + 1);
             }
-            if (currentStart < matchText.length) blocks.push(matchText.length);
-            isError = !skipErrors && visualWidth % tabSize !== 0;
+            if (visualWidth % tabSize !== 0) {
+                blocks.push(matchText.length);
+                isError = !skipErrors;
+            }
         }
         return { blocks, visualWidth, isMixed, isError, isIgnored };
     }
@@ -302,6 +508,11 @@ export class IndentSpectra implements vscode.Disposable {
     private applyDecorations(editor: vscode.TextEditor, result: IndentationAnalysisResult): void {
         if (this.isDisposed) return;
         this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.spectra[i]));
+        if (this.configManager.current.activeIndentBrightness > 0) {
+            this.activeLevelDecorators.forEach((dec, i) =>
+                editor.setDecorations(dec, result.activeLevelSpectra[i]),
+            );
+        }
         if (this.errorDecorator) editor.setDecorations(this.errorDecorator, result.errors);
         if (this.mixDecorator) editor.setDecorations(this.mixDecorator, result.mixed);
     }
@@ -310,23 +521,34 @@ export class IndentSpectra implements vscode.Disposable {
         const size = editor.options.tabSize;
         if (typeof size === 'number') return size;
         if (typeof size === 'string') return parseInt(size, 10) || 4;
-        return vscode.workspace.getConfiguration('editor').get<number>('tabSize') || 4;
+        return vscode.workspace.getConfiguration('editor').get<number>('tabSize') ?? 4;
     }
 
-    private async identifyIgnoredLines(doc: vscode.TextDocument, token: vscode.CancellationToken): Promise<Set<number>> {
+    private async identifyIgnoredLines(
+        doc: vscode.TextDocument,
+        token: vscode.CancellationToken,
+    ): Promise<Set<number>> {
         const ignoredLines = new Set<number>();
         const patterns = this.configManager.current.compiledPatterns;
-        if (patterns.length === 0 || (doc.lineCount > MASSIVE_FILE_THRESHOLD && doc.languageId === 'plaintext')) return ignoredLines;
+        if (
+            patterns.length === 0 ||
+            (doc.lineCount > MASSIVE_FILE_THRESHOLD && doc.languageId === 'plaintext')
+        )
+            return ignoredLines;
 
         const text = doc.getText();
         const lineStarts: number[] = [0];
-        for (let i = 0; i < text.length; i++) { if (text[i] === '\n') lineStarts.push(i + 1); }
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\n') lineStarts.push(i + 1);
+        }
 
         const getLineIndex = (offset: number): number => {
-            let low = 0, high = lineStarts.length - 1;
+            let low = 0,
+                high = lineStarts.length - 1;
             while (low <= high) {
                 const mid = (low + high) >> 1;
-                if (lineStarts[mid] <= offset) low = mid + 1; else high = mid - 1;
+                if (lineStarts[mid] <= offset) low = mid + 1;
+                else high = mid - 1;
             }
             return high;
         };
@@ -337,15 +559,15 @@ export class IndentSpectra implements vscode.Disposable {
             let match: RegExpExecArray | null;
             let matchCount = 0;
             while ((match = regex.exec(text)) !== null) {
-                if (++matchCount % 100 === 0 && (performance.now() - lastYieldTime) > 10) {
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                if (++matchCount % 100 === 0 && performance.now() - lastYieldTime > 10) {
+                    await new Promise((resolve) => setTimeout(resolve, 0));
                     if (token.isCancellationRequested) return ignoredLines;
                     lastYieldTime = performance.now();
                 }
                 const startLine = getLineIndex(match.index);
-                const endLine = getLineIndex(match.index + match[0].length);
+                const endLine = getLineIndex(match.index + (match[0]?.length ?? 0));
                 for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
-                if (match[0].length === 0) regex.lastIndex++;
+                if (match[0]?.length === 0) regex.lastIndex++;
             }
         }
         return ignoredLines;

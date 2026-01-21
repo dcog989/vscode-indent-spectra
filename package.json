@@ -31,6 +31,31 @@
       "supported": true
     }
   },
+  "scripts": {
+    "vscode:prepublish": "bun run bundle",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "bundle": "bun run check-types && bun run lint && node esbuild.js --production",
+    "bundle-watch": "node esbuild.js --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "bun run bundle && bun run compile && node ./out/test/runTest.js",
+    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\""
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.0.9",
+    "@types/vscode": "^1.108.1",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "glob": "^13.0.0",
+    "globals": "^16.5.0",
+    "mocha": "^11.7.5",
+    "typescript": "^5.9.3"
+  },
   "contributes": {
     "configuration": {
       "type": "object",
@@ -113,44 +138,14 @@
           ],
           "description": "Languages where indentation errors should not be highlighted."
         },
-        "indentSpectra.highlightActiveLine": {
-          "type": "boolean",
-          "default": true,
-          "description": "Brighten indentation colors on the line containing the cursor."
-        },
-        "indentSpectra.activeLineBrightness": {
-          "type": "number",
-          "default": 1.5,
-          "minimum": 1.0,
-          "maximum": 3.0,
-          "description": "Brightness multiplier for active line indentation (1.0 = no change, higher = brighter)."
+        "indentSpectra.activeIndentBrightness": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 9,
+          "description": "Highlight intensity of the active / current block. 0 = off, 9 = very bright."
         }
       }
     }
-  },
-  "scripts": {
-    "vscode:prepublish": "bun run bundle",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "bundle": "bun run check-types && bun run lint && node esbuild.js --production",
-    "bundle-watch": "node esbuild.js --watch",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src",
-    "test": "bun run bundle && bun run compile && node ./out/test/runTest.js",
-    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\""
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^25.0.9",
-    "@types/vscode": "^1.108.1",
-    "@typescript-eslint/eslint-plugin": "^8.53.1",
-    "@typescript-eslint/parser": "^8.53.1",
-    "@vscode/test-electron": "^2.5.2",
-    "esbuild": "^0.27.2",
-    "eslint": "^9.39.2",
-    "glob": "^13.0.0",
-    "globals": "^16.5.0",
-    "mocha": "^11.7.5",
-    "typescript": "^5.9.3"
   }
 }

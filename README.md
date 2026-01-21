@@ -1,10 +1,10 @@
 # ![Indent Spectra logo](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/icon-64.png) Indent Spectra
 
-*Indent Spectra* colorizes line indentation levels in Visual Studio Code, making code structure instantly readable.
+_Indent Spectra_ colorizes line indentation levels in Visual Studio Code, making code structure instantly readable.
 
-It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern](#comparison-with-indent-rainbow).
+It has feature parity with _Indent Rainbow_, it's just [faster, slimmer, modern](#comparison-with-indent-rainbow).
 
-[Install *Indent Spectra* from Marketplace](https://marketplace.visualstudio.com/items?itemName=dcog989.indent-spectra).
+[Install _Indent Spectra_ from Marketplace](https://marketplace.visualstudio.com/items?itemName=dcog989.indent-spectra).
 
 ![Indent Spectra screenshot](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/screen-1.png)
 
@@ -22,7 +22,7 @@ It has feature parity with *Indent Rainbow*, it's just [faster, slimmer, modern]
 Choose from color palettes designed from first principles using color theory frameworks [Okabe-Ito](https://easystats.github.io/see/reference/scale_color_okabeito.html), [Temperature Alternation](https://en.wikipedia.org/wiki/Color_theory#Warm_vis-_cool_colors), and [Analogous Harmony](https://www.colorpsychology.org/analogous-colors/).
 
 | Preset                  | Description                                                           |
-|-------------------------|-----------------------------------------------------------------------|
+| ----------------------- | --------------------------------------------------------------------- |
 | **Universal** (Default) | Excellent contrast (Gold, Royal Blue, Pink, Cyan), optimized for all. |
 | **Protan/Deuteran**     | Safe for Red/Green color blindness. Uses Blue/Yellow/Gray scales.     |
 | **Tritan**              | Safe for Blue color blindness. Uses Red/Teal/Gray scales.             |
@@ -32,7 +32,7 @@ Choose from color palettes designed from first principles using color theory fra
 
 ## Configuration
 
-Customize *Indent Spectra* in your `settings.json` or via the Settings UI:
+Customize _Indent Spectra_ in your `settings.json` or via the Settings UI:
 
 ```json
 // Choose a preset palette
@@ -57,6 +57,9 @@ Customize *Indent Spectra* in your `settings.json` or via the Settings UI:
 
 // Delay in ms before updating (debouncing)
 "indentSpectra.updateDelay": 100
+
+// Highlight intensity of the active / current block (0 - 9)
+"indentSpectra.activeIndentBrightness": 2
 ```
 
 ## Requirements
@@ -69,31 +72,31 @@ Inspired by [indent-rainbow](https://marketplace.visualstudio.com/items?itemName
 
 ## Comparison with Indent Rainbow
 
-For starters, it's lightweight: *Indent Spectra* install file = 12 KB, *Indent Rainbow* = 179 KB.
+For starters, it's lightweight: _Indent Spectra_ install file = 12 KB, _Indent Rainbow_ = 179 KB.
 
 ### 1. Performance, Efficiency
 
 The rendering engine was rewritten from scratch to handle large files without slowing down the editor.
 
-- **O(1) vs O(N) Lookups:** The original extension uses `Array.indexOf` inside the main rendering loop to check for ignored lines, leading to quadratic complexity. *Indent Spectra* uses `Set` lookups (O(1)), making it instantaneously fast regardless of file size.
+- **O(1) vs O(N) Lookups:** The original extension uses `Array.indexOf` inside the main rendering loop to check for ignored lines, leading to quadratic complexity. _Indent Spectra_ uses `Set` lookups (O(1)), making it instantaneously fast regardless of file size.
 - **Memory Management:** Reduced Garbage Collection pressure by reusing RegExp objects and avoiding unnecessary string splitting/array allocations during the render loop.
 - **Smart Debouncing:** Implemented input debouncing to prevent the extension from trying to render every single keystroke during rapid typing.
 
 ### 2. Accessibility, Color Theory
 
-*Rainbow* uses a standard spectrum where adjacent colors (like Green and Cyan) blend together for many people. *Spectra* uses:
+_Rainbow_ uses a standard spectrum where adjacent colors (like Green and Cyan) blend together for many people. _Spectra_ uses:
 
-- **Interleaved Contrast:** Instead of a gradient, *Spectra* alternates **Warm** (Gold, Pink) and **Cool** (Blue, Cyan) colors. This maximizes the "visual distance" between indentation levels.
+- **Interleaved Contrast:** Instead of a gradient, _Spectra_ alternates **Warm** (Gold, Pink) and **Cool** (Blue, Cyan) colors. This maximizes the "visual distance" between indentation levels.
 - **Accessibility Presets:** Includes built-in palettes designed for **Color Vision Deficiencies** ([Protanopia, Deuteranopia, and Tritanopia](https://www.colourblindawareness.org/colour-blindness/types-of-colour-blindness/)) based on the [Okabe-Ito standard](https://easystats.github.io/see/reference/scale_color_okabeito.html).
 
 ### 3. UX
 
-- **Live Configuration:** Changing settings (colors, tab size, styles) updates the editor instantly. *Rainbow* requires a full window reload to apply settings.
+- **Live Configuration:** Changing settings (colors, tab size, styles) updates the editor instantly. _Rainbow_ requires a full window reload to apply settings.
 - **Web Native:** Configured to run in **VS Code for the Web** (github.dev, vscode.dev) with `virtualWorkspaces` support enabled in the manifest.
 
 ### 4. Code Quality & Maintenance
 
-- **Strict Typing:** TypeScript 5.9 / `strict: true`. *Rainbow* relies on loose `var` declarations and implicit `any` types.
+- **Strict Typing:** TypeScript 5.9 / `strict: true`. _Rainbow_ relies on loose `var` declarations and implicit `any` types.
 - **Modern Architecture:** Clean class structure (`IndentSpectra.ts`) with proper lifecycle management (`dispose` patterns), so easier to maintain and less prone to memory leaks.
 
 ### Summary Table

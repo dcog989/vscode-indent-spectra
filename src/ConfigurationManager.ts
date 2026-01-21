@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { CSS_NAMED_COLORS, PaletteKey, PALETTES } from './colors';
+import { CSS_NAMED_COLORS, PALETTES, type PaletteKey } from './colors';
 
 const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const RGBA_COLOR_REGEX = /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
+const RGBA_COLOR_REGEX =
+    /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
 export interface IndentSpectraConfig {
     updateDelay: number;
@@ -16,6 +17,7 @@ export interface IndentSpectraConfig {
     ignoreErrorLanguages: Set<string>;
     indicatorStyle: 'classic' | 'light';
     lightIndicatorWidth: number;
+    activeIndentBrightness: number;
 }
 
 export class ConfigurationManager {
@@ -53,7 +55,11 @@ export class ConfigurationManager {
             ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
             ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
             indicatorStyle: indicatorStyle as 'classic' | 'light',
-            lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1))
+            lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1)),
+            activeIndentBrightness: Math.max(
+                0,
+                Math.min(9, config.get<number>('activeIndentBrightness', 2)),
+            ),
         };
 
         this._onDidChangeConfig.fire(this.config);
@@ -61,10 +67,10 @@ export class ConfigurationManager {
 
     private resolveColors(preset: PaletteKey | 'custom', customColors: string[]): string[] {
         if (preset === 'custom') {
-            const valid = customColors.filter(c => this.isValidColor(c));
+            const valid = customColors.filter((c) => this.isValidColor(c));
             return valid.length > 0 ? valid : PALETTES.universal;
         }
-        return PALETTES[preset] || PALETTES.universal;
+        return PALETTES[preset] ?? PALETTES.universal;
     }
 
     private sanitizeColor(color: string): string {
@@ -74,27 +80,33 @@ export class ConfigurationManager {
     private isValidColor(color: string): boolean {
         if (!color || typeof color !== 'string') return false;
         const trimmed = color.trim();
-        return HEX_COLOR_REGEX.test(trimmed) || RGBA_COLOR_REGEX.test(trimmed) || CSS_NAMED_COLORS.has(trimmed.toLowerCase());
+        return (
+            HEX_COLOR_REGEX.test(trimmed) ||
+            RGBA_COLOR_REGEX.test(trimmed) ||
+            CSS_NAMED_COLORS.has(trimmed.toLowerCase())
+        );
     }
 
     private compilePatterns(patterns: string[]): RegExp[] {
-        return patterns.map(p => {
-            try {
-                let source = p;
-                let flags = '';
-                const match = p.match(/^\/(.+)\/([a-z]*)$/i);
-                if (match) {
-                    source = match[1];
-                    flags = match[2];
+        return patterns
+            .map((p) => {
+                try {
+                    let source = p;
+                    let flags = '';
+                    const match = p.match(/^\/(.+)\/([a-z]*)$/i);
+                    if (match) {
+                        source = match[1];
+                        flags = match[2];
+                    }
+                    const flagSet = new Set(flags.toLowerCase().split(''));
+                    flagSet.add('g');
+                    flagSet.add('m');
+                    return new RegExp(source, Array.from(flagSet).join(''));
+                } catch {
+                    return null;
                 }
-                const flagSet = new Set(flags.toLowerCase().split(''));
-                flagSet.add('g');
-                flagSet.add('m');
-                return new RegExp(source, Array.from(flagSet).join(''));
-            } catch {
-                return null;
-            }
-        }).filter((r): r is RegExp => r !== null);
+            })
+            .filter((r): r is RegExp => r !== null);
     }
 
     public dispose(): void {
