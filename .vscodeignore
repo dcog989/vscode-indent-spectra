@@ -1,40 +1,45 @@
-# Exclude Source & Development files
+# --- Development & Source ---
+.claude/
+.github/
+.vscode/
+src/
+node_modules/
+out/
+.vscode-test/
+**/*.ts
+**/*.tsbuildinfo
+**/*.map
+
+# --- Tooling Configs ---
+.editorconfig
+.prettierignore
+.prettierrc
+eslint.config.mjs
+esbuild.js
+tsconfig.json
+bun.lock
+
+# --- Documentation & Metadata ---
+AGENTS.md
 .ai/
 .assets/
 .docs/
 .git/
-.github/
 .gitignore
 .repomixignore
-.scripts/
-.tests/
-.vscode-test/
-**/*.map
-**/*.ts
-**/*.tsbuildinfo
-
-# Build Configs
-.eslintrc.json
-esbuild.js
-tsconfig.json
 repomix.config.json
 vsc-extension-quickstart.md
 
-# Build Folders
-src/
-tests/
-out/
-node_modules/
-
-# Selective Asset Ignore
+# --- Selective Asset Ignore ---
 assets/icon-64.png
 assets/icon.svg
 assets/screen-1.png
 
-# Explicitly Include Production Files
+# --- Explicitly Include Production Files ---
 !dist/
 !dist/extension.js
 !package.json
 !README.md
 !CHANGELOG.md
 !assets/icon.png
+!LICENSE.txt
