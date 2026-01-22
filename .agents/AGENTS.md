@@ -5,7 +5,7 @@ Indent Spectra is an extension for VS Code that colorises line indentation to ai
 ## Tech Stack
 
 - **TypeScript 5.9** with strict mode enabled
-- **VS Code Extension API** (^1.108.1)
+- **VS Code Extension API** (^1.106.1)
 - **Node.js** runtime (ES2024 target)
 - **esbuild** for bundling (production builds)
 - **Bun** for package management and scripts
