@@ -1,4 +1,4 @@
-# Indent Spectra Project Guidelines
+# VS Code Indent Spectra Guidelines
 
 Indent Spectra is an extension for VS Code that colorises line indentation to aid user readability. It focuses on performance, minimal resource usage.
 
@@ -17,27 +17,27 @@ Indent Spectra is an extension for VS Code that colorises line indentation to ai
 ### Extension Entry Point
 
 - **Main**: `src/extension.ts` - Exports `activate()` and `deactivate()` functions
-  - Creates `IndentSpectra` instance
-  - Sets up VS Code event listeners (document changes, editor changes, configuration changes)
-  - Manages extension lifecycle
+    - Creates `IndentSpectra` instance
+    - Sets up VS Code event listeners (document changes, editor changes, configuration changes)
+    - Manages extension lifecycle
 
 ### Core Components
 
 - **IndentSpectra** (`src/IndentSpectra.ts`) - Main rendering engine
-  - Manages decorators and caching
-  - Analyzes indentation patterns
-  - Applies decorations to visible text
-  - Handles incremental updates
-  
+    - Manages decorators and caching
+    - Analyzes indentation patterns
+    - Applies decorations to visible text
+    - Handles incremental updates
+
 - **ConfigurationManager** (`src/ConfigurationManager.ts`) - Configuration management
-  - Loads and validates settings from VS Code configuration
-  - Compiles regex patterns for ignored lines
-  - Provides color palette resolution
-  - Emits configuration change events
+    - Loads and validates settings from VS Code configuration
+    - Compiles regex patterns for ignored lines
+    - Provides color palette resolution
+    - Emits configuration change events
 
 - **colors.ts** (`src/colors.ts`) - Color palettes and definitions
-  - Defines preset color palettes (universal, protan-deuteran, tritan, cool, warm)
-  - CSS named colors validation
+    - Defines preset color palettes (universal, protan-deuteran, tritan, cool, warm)
+    - CSS named colors validation
 
 ### Build Output
 
@@ -65,6 +65,7 @@ Indent Spectra is an extension for VS Code that colorises line indentation to ai
 ### Event Handling
 
 Extension responds to:
+
 - `onDidChangeActiveTextEditor` - Clear state, trigger update
 - `onDidChangeTextEditorOptions` - Trigger update
 - `onDidChangeTextEditorVisibleRanges` - Trigger update
@@ -106,6 +107,7 @@ Extension responds to:
 ## Common Patterns
 
 ### Async Work with Cancellation
+
 ```typescript
 this.cancellationSource = new vscode.CancellationTokenSource();
 await this.someAsyncWork(this.cancellationSource.token);
@@ -113,12 +115,14 @@ await this.someAsyncWork(this.cancellationSource.token);
 ```
 
 ### Debounced Updates
+
 ```typescript
 if (this.timeout) clearTimeout(this.timeout);
 this.timeout = setTimeout(() => this.update(), delay);
 ```
 
 ### Cache Invalidation
+
 ```typescript
 // Clear all caches for a document
 this.lineCache.delete(uriString);
@@ -127,6 +131,7 @@ this.lastAppliedState.delete(uriString);
 ```
 
 ### Line Analysis Result Structure
+
 ```typescript
 interface LineAnalysis {
     blocks: number[];        // Character positions of indent boundaries
@@ -138,6 +143,7 @@ interface LineAnalysis {
 ```
 
 ### Configuration Management
+
 - Always use `this.configManager.current` to access config
 - Listen to `configManager.onDidChangeConfig` for updates
 - Config changes trigger decorator recreation and cache clearing
