@@ -1,34 +1,32 @@
-const esbuild = require("esbuild");
+const esbuild = require('esbuild');
 
-const production = process.argv.includes("--production");
-const watch = process.argv.includes("--watch");
+const production = process.argv.includes('--production');
+const watch = process.argv.includes('--watch');
 
 async function main() {
     const ctx = await esbuild.context({
-        entryPoints: ["src/extension.ts"],
+        entryPoints: ['src/extension.ts'],
         bundle: true,
-        format: "cjs",
+        format: 'cjs',
         minify: production,
         sourcemap: !production,
         sourcesContent: false,
-        platform: "node",
-        outfile: "dist/extension.js",
-        external: ["vscode"],
-        logLevel: "info",
+        platform: 'node',
+        outfile: 'dist/extension.js',
+        external: ['vscode'],
+        logLevel: 'info',
         treeShaking: true,
         metafile: production,
-        legalComments: "none",
-        target: ["node25"],
+        legalComments: 'none',
+        target: ['node22'],
         define: {
-            "process.env.NODE_ENV": production
-                ? '"production"'
-                : '"development"',
+            'process.env.NODE_ENV': production ? '"production"' : '"development"',
         },
     });
 
     if (watch) {
         await ctx.watch();
-        console.log("Watching for changes...");
+        console.log('Watching for changes...');
     } else {
         await ctx.rebuild();
 
