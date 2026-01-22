@@ -170,6 +170,18 @@ export class IndentSpectra implements vscode.Disposable {
         this.configManager.load();
     }
 
+    public handleThemeChange(): void {
+        if (this.isDisposed) return;
+        const config = this.configManager.current;
+        
+        if (config.activeIndentBrightness > 0) {
+            this.disposeDecorators();
+            this.initializeDecorators();
+            this.lastAppliedState.clear();
+            this.triggerUpdate(undefined, true);
+        }
+    }
+
     public clearCache(uri: vscode.Uri): void {
         const uriString = uri.toString();
         this.lineCache.delete(uriString);
@@ -363,6 +375,7 @@ export class IndentSpectra implements vscode.Disposable {
                 blockStart = activeLineNum;
                 blockEnd = activeLineNum;
 
+                let lastNonEmptyIndent = activeLineData.blocks.length;
                 for (let i = activeLineNum - 1; i >= 0; i--) {
                     const data = this.getOrAnalyzeLine(
                         doc,
@@ -374,10 +387,16 @@ export class IndentSpectra implements vscode.Disposable {
                     const text = doc.lineAt(i).text;
                     const isEmpty = this.isEmptyOrIgnored(text, ignoredLines.has(i));
 
-                    if (!isEmpty && data.blocks.length < minIndentLevel) break;
+                    if (!isEmpty) {
+                        if (data.blocks.length < minIndentLevel) break;
+                        lastNonEmptyIndent = data.blocks.length;
+                    } else if (lastNonEmptyIndent < minIndentLevel) {
+                        break;
+                    }
                     blockStart = i;
                 }
 
+                lastNonEmptyIndent = activeLineData.blocks.length;
                 for (let i = activeLineNum + 1; i < lineCount; i++) {
                     const data = this.getOrAnalyzeLine(
                         doc,
@@ -389,7 +408,12 @@ export class IndentSpectra implements vscode.Disposable {
                     const text = doc.lineAt(i).text;
                     const isEmpty = this.isEmptyOrIgnored(text, ignoredLines.has(i));
 
-                    if (!isEmpty && data.blocks.length < minIndentLevel) break;
+                    if (!isEmpty) {
+                        if (data.blocks.length < minIndentLevel) break;
+                        lastNonEmptyIndent = data.blocks.length;
+                    } else if (lastNonEmptyIndent < minIndentLevel) {
+                        break;
+                    }
                     blockEnd = i;
                 }
             }
@@ -559,6 +583,7 @@ export class IndentSpectra implements vscode.Disposable {
             regex.lastIndex = 0;
             let match: RegExpExecArray | null;
             let matchCount = 0;
+            let lastMatchIndex = -1;
             while ((match = regex.exec(text)) !== null) {
                 if (++matchCount % 100 === 0 && performance.now() - lastYieldTime > 10) {
                     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -568,6 +593,13 @@ export class IndentSpectra implements vscode.Disposable {
                 const startLine = getLineIndex(match.index);
                 const endLine = getLineIndex(match.index + (match[0]?.length ?? 0));
                 for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
+                
+                if (match.index === lastMatchIndex) {
+                    regex.lastIndex++;
+                    if (regex.lastIndex > text.length) break;
+                }
+                lastMatchIndex = match.index;
+                
                 if (match[0]?.length === 0) regex.lastIndex++;
             }
         }

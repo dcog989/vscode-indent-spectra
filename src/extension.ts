@@ -73,6 +73,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
         ),
 
+        vscode.window.onDidChangeActiveColorTheme(
+            () => {
+                indentSpectra?.handleThemeChange();
+            }
+        ),
+
         indentSpectra
     );
 
