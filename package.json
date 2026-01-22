@@ -2,7 +2,7 @@
   "name": "indent-spectra",
   "displayName": "Indent Spectra",
   "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-  "version": "1.4.0",
+  "version": "1.4.7",
   "publisher": "dcog989",
   "icon": "assets/icon.png",
   "repository": {
@@ -32,15 +32,15 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "bun run bundle",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "bundle": "bun run check-types && bun run lint && node esbuild.js --production",
     "bundle-watch": "node esbuild.js --watch",
+    "bundle": "bun run check-types && bun run lint && node esbuild.js --production",
     "check-types": "tsc --noEmit",
+    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\"",
+    "compile": "tsc -p ./",
     "lint": "eslint src",
     "test": "bun run bundle && bun run compile && node ./out/test/runTest.js",
-    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\""
+    "vscode:prepublish": "bun run bundle",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

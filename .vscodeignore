@@ -1,14 +1,17 @@
 # --- Development & Source ---
-.claude/
-.github/
-.vscode/
-src/
-node_modules/
-out/
-.vscode-test/
+.agents
+.github
+.husky
+.vscode
+.vscode-test
+**/*.map
 **/*.ts
 **/*.tsbuildinfo
-**/*.map
+CLAUDE.md
+node_modules
+out
+package.json
+src
 
 # --- Tooling Configs ---
 .editorconfig

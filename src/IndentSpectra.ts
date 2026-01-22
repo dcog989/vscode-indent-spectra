@@ -71,13 +71,13 @@ export class IndentSpectra implements vscode.Disposable {
         });
     }
 
-    private brightenColor(color: string, scale: number): string {
-        if (scale === 0) return color;
+    private brightenColor(color: string, brightness: number): string {
+        if (brightness === 0) return color;
 
         let r = 0,
             g = 0,
             b = 0,
-            a = 0.1;
+            a = 1;
         let matched = false;
 
         const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
@@ -107,15 +107,21 @@ export class IndentSpectra implements vscode.Disposable {
         if (!matched) return color;
 
         const isLightTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light;
-        const normalizedScale = scale / 9;
+        const factor = brightness / 10;
 
-        const newAlpha = Math.min(1, a + normalizedScale * 0.7);
+        if (isLightTheme) {
+            r = Math.round(Math.max(0, r - (r * factor * 0.4)));
+            g = Math.round(Math.max(0, g - (g * factor * 0.4)));
+            b = Math.round(Math.max(0, b - (b * factor * 0.4)));
+        } else {
+            r = Math.round(Math.min(255, r + ((255 - r) * factor * 0.4)));
+            g = Math.round(Math.min(255, g + ((255 - g) * factor * 0.4)));
+            b = Math.round(Math.min(255, b + ((255 - b) * factor * 0.4)));
+        }
 
-        const target = isLightTheme ? 0 : 255;
-        const boost = (val: number): number =>
-            Math.round(val + (target - val) * normalizedScale * 0.5);
+        a = Math.min(1, a + factor * 0.3);
 
-        return `rgba(${boost(r)}, ${boost(g)}, ${boost(b)}, ${newAlpha})`;
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
     }
 
     private initializeDecorators(): void {
@@ -323,11 +329,12 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         const activeLineNum = config.activeIndentBrightness > 0 ? editor.selection.active.line : -1;
-        let activeLevel = -1;
+        let highlightLevel = -1;
         let blockStart = -1;
         let blockEnd = -1;
 
         if (activeLineNum !== -1) {
+            const cursorChar = editor.selection.active.character;
             const activeLineData = this.getOrAnalyzeLine(
                 doc,
                 activeLineNum,
@@ -335,35 +342,24 @@ export class IndentSpectra implements vscode.Disposable {
                 skipErrors,
                 ignoredLines.has(activeLineNum),
             );
-            const cursorChar = editor.selection.active.character;
-            const indentEnd =
-                activeLineData.blocks.length > 0
-                    ? activeLineData.blocks[activeLineData.blocks.length - 1]
-                    : 0;
 
-            if (cursorChar < indentEnd) {
-                activeLevel = activeLineData.blocks.findIndex((end) => cursorChar < end);
+            if (activeLineData.blocks.length === 0) {
+                highlightLevel = -1;
             } else {
-                let nextLevel = activeLineData.blocks.length;
-                for (let i = activeLineNum + 1; i < lineCount; i++) {
-                    const data = this.getOrAnalyzeLine(
-                        doc,
-                        i,
-                        tabSize,
-                        skipErrors,
-                        ignoredLines.has(i),
-                    );
-                    if (this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) continue;
-                    nextLevel = data.blocks.length;
-                    break;
+                for (let i = 0; i < activeLineData.blocks.length; i++) {
+                    if (cursorChar <= activeLineData.blocks[i]) {
+                        highlightLevel = i;
+                        break;
+                    }
                 }
-                activeLevel =
-                    nextLevel > activeLineData.blocks.length
-                        ? activeLineData.blocks.length
-                        : activeLineData.blocks.length - 1;
+
+                if (highlightLevel === -1) {
+                    highlightLevel = activeLineData.blocks.length - 1;
+                }
             }
 
-            if (activeLevel !== -1) {
+            if (highlightLevel !== -1) {
+                const minIndentLevel = highlightLevel + 1;
                 blockStart = activeLineNum;
                 blockEnd = activeLineNum;
 
@@ -375,10 +371,13 @@ export class IndentSpectra implements vscode.Disposable {
                         skipErrors,
                         ignoredLines.has(i),
                     );
-                    const isExtra = this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i));
-                    if (!isExtra && data.blocks.length <= activeLevel) break;
+                    const text = doc.lineAt(i).text;
+                    const isEmpty = this.isEmptyOrIgnored(text, ignoredLines.has(i));
+
+                    if (!isEmpty && data.blocks.length < minIndentLevel) break;
                     blockStart = i;
                 }
+
                 for (let i = activeLineNum + 1; i < lineCount; i++) {
                     const data = this.getOrAnalyzeLine(
                         doc,
@@ -387,8 +386,10 @@ export class IndentSpectra implements vscode.Disposable {
                         skipErrors,
                         ignoredLines.has(i),
                     );
-                    const isExtra = this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i));
-                    if (!isExtra && data.blocks.length <= activeLevel) break;
+                    const text = doc.lineAt(i).text;
+                    const isEmpty = this.isEmptyOrIgnored(text, ignoredLines.has(i));
+
+                    if (!isEmpty && data.blocks.length < minIndentLevel) break;
                     blockEnd = i;
                 }
             }
@@ -436,7 +437,7 @@ export class IndentSpectra implements vscode.Disposable {
                 const range = new vscode.Range(i, start, i, lineData.blocks[j]);
                 const decoratorIndex = j % this.decorators.length;
 
-                if (inActiveBlock && j === activeLevel) {
+                if (inActiveBlock && j === highlightLevel && j < lineData.blocks.length) {
                     activeLevelSpectra[decoratorIndex].push(range);
                 } else {
                     spectra[decoratorIndex].push(range);
