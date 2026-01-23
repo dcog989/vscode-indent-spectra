@@ -6,7 +6,7 @@ export interface ParsedColor {
 }
 
 export class ColorBrightnessCache {
-    private cache = new Map<string, string>();
+    protected cache = new Map<string, string>();
 
     public getBrightened(color: string, brightness: number, isLightTheme: boolean): string {
         if (brightness === 0) return color;
@@ -15,7 +15,25 @@ export class ColorBrightnessCache {
         const cached = this.cache.get(cacheKey);
         if (cached) return cached;
 
-        const result = ColorUtils.brightenColor(color, brightness, isLightTheme);
+        const parsed = ColorUtils.parseColor(color);
+        if (!parsed) return color;
+
+        const result = ColorUtils.applyBrightness(parsed, brightness, isLightTheme);
+        this.cache.set(cacheKey, result);
+        return result;
+    }
+
+    public getBrightenedDirect(color: string, brightness: number, isLightTheme: boolean): string {
+        if (brightness === 0) return color;
+
+        const cacheKey = `${color}|${brightness}|${isLightTheme}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached) return cached;
+
+        const parsed = ColorUtils.parseColor(color);
+        if (!parsed) return color;
+
+        const result = ColorUtils.applyBrightness(parsed, brightness, isLightTheme);
         this.cache.set(cacheKey, result);
         return result;
     }
@@ -412,7 +430,7 @@ export class ColorUtils {
     private static brightnessCache = new ColorBrightnessCache();
 
     public static brightenColor(color: string, brightness: number, isLightTheme: boolean): string {
-        return this.brightnessCache.getBrightened(color, brightness, isLightTheme);
+        return this.brightnessCache.getBrightenedDirect(color, brightness, isLightTheme);
     }
 
     public static clearBrightnessCache(): void {
