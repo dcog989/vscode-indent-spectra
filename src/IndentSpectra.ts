@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigurationManager } from './ConfigurationManager';
 import { LRUCache } from './LRUCache';
+import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
+import { DecorationSuite } from './DecorationSuite';
 
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
@@ -15,20 +17,8 @@ interface IndentationAnalysisResult {
     mixed: vscode.Range[];
 }
 
-interface LineAnalysis {
-    blocks: number[];
-    visualWidth: number;
-    isMixed: boolean;
-    isError: boolean;
-    isIgnored: boolean;
-}
-
 export class IndentSpectra implements vscode.Disposable {
-    private decorators: vscode.TextEditorDecorationType[] = [];
-    private activeLevelDecorators: vscode.TextEditorDecorationType[] = [];
-    private errorDecorator?: vscode.TextEditorDecorationType;
-    private mixDecorator?: vscode.TextEditorDecorationType;
-
+    private decorationSuite?: DecorationSuite;
     private configManager: ConfigurationManager;
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
@@ -42,7 +32,11 @@ export class IndentSpectra implements vscode.Disposable {
     constructor() {
         this.configManager = new ConfigurationManager();
         this.configManager.onDidChangeConfig(() => this.handleConfigChange());
-        this.initializeDecorators();
+        this.decorationSuite = new DecorationSuite(
+            this.configManager.current,
+            vscode.window.activeColorTheme.kind,
+        );
+        this.decoratorCacheKey = this.computeDecoratorCacheKey(this.configManager.current);
     }
 
     private handleConfigChange(): void {
@@ -51,8 +45,11 @@ export class IndentSpectra implements vscode.Disposable {
         const newCacheKey = this.computeDecoratorCacheKey(config);
 
         if (newCacheKey !== this.decoratorCacheKey) {
-            this.disposeDecorators();
-            this.initializeDecorators();
+            this.decorationSuite?.dispose();
+            this.decorationSuite = new DecorationSuite(
+                config,
+                vscode.window.activeColorTheme.kind,
+            );
             this.decoratorCacheKey = newCacheKey;
         }
 
@@ -78,101 +75,6 @@ export class IndentSpectra implements vscode.Disposable {
         );
     }
 
-    private brightenColor(color: string, brightness: number): string {
-        if (brightness === 0) return color;
-
-        let r = 0,
-            g = 0,
-            b = 0,
-            a = 1;
-        let matched = false;
-
-        const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
-        if (rgbaMatch) {
-            r = parseInt(rgbaMatch[1], 10);
-            g = parseInt(rgbaMatch[2], 10);
-            b = parseInt(rgbaMatch[3], 10);
-            a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
-            matched = true;
-        } else if (color.startsWith('#')) {
-            let hex = color.slice(1);
-            if (hex.length === 3 || hex.length === 4) {
-                hex = hex
-                    .split('')
-                    .map((c) => c + c)
-                    .join('');
-            }
-            if (hex.length === 6 || hex.length === 8) {
-                r = parseInt(hex.slice(0, 2), 16);
-                g = parseInt(hex.slice(2, 4), 16);
-                b = parseInt(hex.slice(4, 6), 16);
-                a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
-                matched = true;
-            }
-        }
-
-        if (!matched) return color;
-
-        const isLightTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light;
-        const factor = brightness / 10;
-
-        if (isLightTheme) {
-            r = Math.round(Math.max(0, r - (r * factor * 0.4)));
-            g = Math.round(Math.max(0, g - (g * factor * 0.4)));
-            b = Math.round(Math.max(0, b - (b * factor * 0.4)));
-        } else {
-            r = Math.round(Math.min(255, r + ((255 - r) * factor * 0.4)));
-            g = Math.round(Math.min(255, g + ((255 - g) * factor * 0.4)));
-            b = Math.round(Math.min(255, b + ((255 - b) * factor * 0.4)));
-        }
-
-        a = Math.min(1, a + factor * 0.3);
-
-        return `rgba(${r}, ${g}, ${b}, ${a})`;
-    }
-
-    private initializeDecorators(): void {
-        if (this.isDisposed) return;
-        const config = this.configManager.current;
-
-        const options = (color: string, isActive: boolean): vscode.DecorationRenderOptions => {
-            if (config.indicatorStyle === 'light') {
-                const width =
-                    isActive && config.activeIndentBrightness > 0
-                        ? config.lightIndicatorWidth + 1
-                        : config.lightIndicatorWidth;
-                return {
-                    borderWidth: `0 0 0 ${width}px`,
-                    borderStyle: 'solid',
-                    borderColor: color,
-                };
-            }
-            return { backgroundColor: color };
-        };
-
-        this.decorators = config.colors.map((color) =>
-            vscode.window.createTextEditorDecorationType(options(color, false)),
-        );
-
-        if (config.activeIndentBrightness > 0) {
-            this.activeLevelDecorators = config.colors.map((color) => {
-                const brightColor = this.brightenColor(color, config.activeIndentBrightness);
-                return vscode.window.createTextEditorDecorationType(options(brightColor, true));
-            });
-        }
-
-        if (config.errorColor) {
-            this.errorDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.errorColor,
-            });
-        }
-        if (config.mixColor) {
-            this.mixDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.mixColor,
-            });
-        }
-    }
-
     public reloadConfig(): void {
         this.configManager.load();
     }
@@ -180,10 +82,13 @@ export class IndentSpectra implements vscode.Disposable {
     public handleThemeChange(): void {
         if (this.isDisposed) return;
         const config = this.configManager.current;
-        
+
         if (config.activeIndentBrightness > 0) {
-            this.disposeDecorators();
-            this.initializeDecorators();
+            this.decorationSuite?.dispose();
+            this.decorationSuite = new DecorationSuite(
+                config,
+                vscode.window.activeColorTheme.kind,
+            );
             this.lastAppliedState.clear();
             this.triggerUpdate(undefined, true);
         }
@@ -203,7 +108,7 @@ export class IndentSpectra implements vscode.Disposable {
 
     public dispose(): void {
         this.isDisposed = true;
-        this.disposeDecorators();
+        this.decorationSuite?.dispose();
         this.cancelCurrentWork();
         this.configManager.dispose();
         if (this.timeout) clearTimeout(this.timeout);
@@ -219,17 +124,6 @@ export class IndentSpectra implements vscode.Disposable {
             this.cancellationSource.dispose();
             this.cancellationSource = undefined;
         }
-    }
-
-    private disposeDecorators(): void {
-        this.decorators.forEach((d) => d.dispose());
-        this.decorators = [];
-        this.activeLevelDecorators.forEach((d) => d.dispose());
-        this.activeLevelDecorators = [];
-        this.errorDecorator?.dispose();
-        this.errorDecorator = undefined;
-        this.mixDecorator?.dispose();
-        this.mixDecorator = undefined;
     }
 
     public triggerUpdate(event?: vscode.TextDocumentChangeEvent, immediate = false): void {
@@ -426,9 +320,12 @@ export class IndentSpectra implements vscode.Disposable {
             }
         }
 
-        const spectra: vscode.Range[][] = Array.from({ length: this.decorators.length }, () => []);
+        const spectra: vscode.Range[][] = Array.from(
+            { length: this.decorationSuite?.getDecoratorCount() ?? 0 },
+            () => [],
+        );
         const activeLevelSpectra: vscode.Range[][] = Array.from(
-            { length: this.decorators.length },
+            { length: this.decorationSuite?.getDecoratorCount() ?? 0 },
             () => [],
         );
         const errors: vscode.Range[] = [];
@@ -466,7 +363,7 @@ export class IndentSpectra implements vscode.Disposable {
             for (let j = 0; j < lineData.blocks.length; j++) {
                 const start = j === 0 ? 0 : lineData.blocks[j - 1];
                 const range = new vscode.Range(i, start, i, lineData.blocks[j]);
-                const decoratorIndex = j % this.decorators.length;
+                const decoratorIndex = j % (this.decorationSuite?.getDecoratorCount() ?? 1);
 
                 if (inActiveBlock && j === highlightLevel && j < lineData.blocks.length) {
                     activeLevelSpectra[decoratorIndex].push(range);
@@ -475,14 +372,16 @@ export class IndentSpectra implements vscode.Disposable {
                 }
             }
 
-            if (lineData.isError && this.errorDecorator)
+            if (lineData.isError) {
                 errors.push(
                     new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] ?? 0),
                 );
-            if (lineData.isMixed && this.mixDecorator)
+            }
+            if (lineData.isMixed) {
                 mixed.push(
                     new vscode.Range(i, 0, i, lineData.blocks[lineData.blocks.length - 1] ?? 0),
                 );
+            }
         }
 
         return { spectra, activeLevelSpectra, errors, mixed };
@@ -501,7 +400,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         const data = isIgnored
             ? { blocks: [], visualWidth: 0, isMixed: false, isError: false, isIgnored: true }
-            : this.analyzeLine(doc.lineAt(line).text, tabSize, skipErrors, isIgnored);
+            : IndentationEngine.analyzeLine(doc.lineAt(line).text, tabSize, skipErrors, isIgnored);
 
         if (cache) cache[line] = data;
         return data;
@@ -511,42 +410,15 @@ export class IndentSpectra implements vscode.Disposable {
         return isIgnored || text.trim().length === 0;
     }
 
-    private analyzeLine(
-        text: string,
-        tabSize: number,
-        skipErrors: boolean,
-        isIgnored: boolean,
-    ): LineAnalysis {
-        const blocks: number[] = [];
-        let visualWidth = 0,
-            isMixed = false,
-            isError = false;
-        const indentMatch = text.match(/^[\t ]+/);
-        if (indentMatch) {
-            const matchText = indentMatch[0];
-            isMixed = matchText.includes('\t') && matchText.includes(' ');
-            for (let i = 0; i < matchText.length; i++) {
-                visualWidth += matchText[i] === '\t' ? tabSize - (visualWidth % tabSize) : 1;
-                if (visualWidth % tabSize === 0) blocks.push(i + 1);
-            }
-            if (visualWidth % tabSize !== 0) {
-                blocks.push(matchText.length);
-                isError = !skipErrors;
-            }
-        }
-        return { blocks, visualWidth, isMixed, isError, isIgnored };
-    }
-
     private applyDecorations(editor: vscode.TextEditor, result: IndentationAnalysisResult): void {
-        if (this.isDisposed) return;
-        this.decorators.forEach((dec, i) => editor.setDecorations(dec, result.spectra[i]));
-        if (this.configManager.current.activeIndentBrightness > 0) {
-            this.activeLevelDecorators.forEach((dec, i) =>
-                editor.setDecorations(dec, result.activeLevelSpectra[i]),
-            );
-        }
-        if (this.errorDecorator) editor.setDecorations(this.errorDecorator, result.errors);
-        if (this.mixDecorator) editor.setDecorations(this.mixDecorator, result.mixed);
+        if (this.isDisposed || !this.decorationSuite) return;
+        this.decorationSuite.apply(
+            editor,
+            result.spectra,
+            result.activeLevelSpectra,
+            result.errors,
+            result.mixed,
+        );
     }
 
     private resolveTabSize(editor: vscode.TextEditor): number {

@@ -65,3 +65,65 @@ export const CSS_NAMED_COLORS = new Set([
     'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
     'yellow', 'yellowgreen'
 ]);
+
+export enum ColorThemeKind {
+    Light = 1,
+    Dark = 2,
+}
+
+export function brightenColor(
+    color: string,
+    brightness: number,
+    themeKind: ColorThemeKind,
+): string {
+    if (brightness === 0) return color;
+
+    let r = 0,
+        g = 0,
+        b = 0,
+        a = 1;
+    let matched = false;
+
+    const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
+    if (rgbaMatch) {
+        r = parseInt(rgbaMatch[1], 10);
+        g = parseInt(rgbaMatch[2], 10);
+        b = parseInt(rgbaMatch[3], 10);
+        a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+        matched = true;
+    } else if (color.startsWith('#')) {
+        let hex = color.slice(1);
+        if (hex.length === 3 || hex.length === 4) {
+            hex = hex
+                .split('')
+                .map((c) => c + c)
+                .join('');
+        }
+        if (hex.length === 6 || hex.length === 8) {
+            r = parseInt(hex.slice(0, 2), 16);
+            g = parseInt(hex.slice(2, 4), 16);
+            b = parseInt(hex.slice(4, 6), 16);
+            a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+            matched = true;
+        }
+    }
+
+    if (!matched) return color;
+
+    const isLightTheme = themeKind === ColorThemeKind.Light;
+    const factor = brightness / 10;
+
+    if (isLightTheme) {
+        r = Math.round(Math.max(0, r - r * factor * 0.4));
+        g = Math.round(Math.max(0, g - g * factor * 0.4));
+        b = Math.round(Math.max(0, b - b * factor * 0.4));
+    } else {
+        r = Math.round(Math.min(255, r + (255 - r) * factor * 0.4));
+        g = Math.round(Math.min(255, g + (255 - g) * factor * 0.4));
+        b = Math.round(Math.min(255, b + (255 - b) * factor * 0.4));
+    }
+
+    a = Math.min(1, a + factor * 0.3);
+
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
