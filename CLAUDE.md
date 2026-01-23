@@ -1,3 +1,3 @@
 # CLAUDE
 
-Access `./.agents/rules.md`
+Project Guidelines @ `.agents/AGENTS.md`
