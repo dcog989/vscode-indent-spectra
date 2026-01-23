@@ -56,7 +56,7 @@ export class LRUCache<K, V> {
 
     private clearValue(value: V | undefined): void {
         if (value === undefined || value === null) return;
-        
+
         if (Array.isArray(value)) {
             value.length = 0;
         } else if (value instanceof Set) {

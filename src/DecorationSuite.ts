@@ -75,7 +75,9 @@ export class DecorationSuite implements vscode.Disposable {
 
     private serializeRanges(ranges: vscode.Range[]): string {
         if (ranges.length === 0) return '';
-        return ranges.map(r => `${r.start.line},${r.start.character},${r.end.line},${r.end.character}`).join(';');
+        return ranges
+            .map((r) => `${r.start.line},${r.start.character},${r.end.line},${r.end.character}`)
+            .join(';');
     }
 
     public apply(
@@ -96,22 +98,22 @@ export class DecorationSuite implements vscode.Disposable {
         };
 
         for (let i = 0; i < this.decorators.length; i++) {
-            if (!lastState || lastState.spectra[i] !== newState.spectra[i]) {
+            if (lastState?.spectra[i] !== newState.spectra[i]) {
                 editor.setDecorations(this.decorators[i], spectra[i]);
             }
         }
 
         for (let i = 0; i < this.activeLevelDecorators.length; i++) {
-            if (!lastState || lastState.activeLevelSpectra[i] !== newState.activeLevelSpectra[i]) {
+            if (lastState?.activeLevelSpectra[i] !== newState.activeLevelSpectra[i]) {
                 editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
             }
         }
 
-        if (this.errorDecorator && (!lastState || lastState.errors !== newState.errors)) {
+        if (this.errorDecorator && lastState?.errors !== newState.errors) {
             editor.setDecorations(this.errorDecorator, errors);
         }
 
-        if (this.mixDecorator && (!lastState || lastState.mixed !== newState.mixed)) {
+        if (this.mixDecorator && lastState?.mixed !== newState.mixed) {
             editor.setDecorations(this.mixDecorator, mixed);
         }
 

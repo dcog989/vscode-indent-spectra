@@ -262,11 +262,7 @@ function applyBrightness(
 export class ColorBrightnessCache {
     private cache = new Map<string, string>();
 
-    public getBrightened(
-        color: string,
-        brightness: number,
-        themeKind: ColorThemeKind,
-    ): string {
+    public getBrightened(color: string, brightness: number, themeKind: ColorThemeKind): string {
         if (brightness === 0) return color;
 
         const cacheKey = `${color}|${brightness}|${themeKind}`;

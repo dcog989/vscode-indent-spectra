@@ -14,17 +14,17 @@ export class PatternCompiler {
         try {
             let source = pattern;
             let flags = '';
-            
+
             const match = pattern.match(/^\/(.+)\/([a-z]*)$/i);
             if (match) {
                 source = match[1];
                 flags = match[2];
             }
-            
+
             const flagSet = new Set(flags.toLowerCase().split(''));
             flagSet.add('g');
             flagSet.add('m');
-            
+
             return {
                 source,
                 flags: Array.from(flagSet).join(''),

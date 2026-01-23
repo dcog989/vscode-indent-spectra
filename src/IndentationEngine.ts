@@ -28,7 +28,11 @@ class LineMetadata {
         return flags;
     }
 
-    public static decode(flags: number): { isMixed: boolean; isError: boolean; isIgnored: boolean } {
+    public static decode(flags: number): {
+        isMixed: boolean;
+        isError: boolean;
+        isIgnored: boolean;
+    } {
         return {
             isMixed: (flags & this.MIXED_FLAG) !== 0,
             isError: (flags & this.ERROR_FLAG) !== 0,
@@ -76,7 +80,7 @@ export class IndentationEngine {
 
         for (; i < text.length; i++) {
             const charCode = text.charCodeAt(i);
-            
+
             if (charCode === TAB_CHAR_CODE) {
                 hasTab = true;
                 visualWidth += tabSize - (visualWidth % tabSize);
