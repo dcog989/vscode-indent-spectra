@@ -1,4 +1,6 @@
-# ![Indent Spectra logo](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/icon-64.png) Indent Spectra
+# Indent Spectra
+
+![Indent Spectra logo](https://raw.githubusercontent.com/dcog989/vscode-indent-spectra/main/assets/icon-64.png)
 
 _Indent Spectra_ colorizes line indentation levels in Visual Studio Code, making code structure instantly readable.
 
@@ -59,7 +61,7 @@ Customize _Indent Spectra_ in your `settings.json` or via the Settings UI:
 "indentSpectra.updateDelay": 100
 
 // Highlight intensity of the active / current block (0 - 9)
-"indentSpectra.activeIndentBrightness": 2
+"indentSpectra.activeIndentBrightness": 3
 ```
 
 ## Requirements
