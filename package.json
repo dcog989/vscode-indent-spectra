@@ -2,7 +2,7 @@
   "name": "indent-spectra",
   "displayName": "Indent Spectra",
   "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-  "version": "1.4.11",
+  "version": "1.4.14",
   "publisher": "dcog989",
   "icon": "assets/icon.png",
   "repository": {
@@ -40,6 +40,7 @@
     "format": "prettier --write \"**/*.{ts,js,json}\"",
     "lint:fix": "eslint src --ext ts --fix",
     "lint": "eslint src --ext ts",
+    "package": "vsce package",
     "test": "bun run build && bun run compile && node ./out/test/runTest.js",
     "typecheck": "tsc --noEmit",
     "vscode:prepublish": "bun run check && bun run build",
@@ -106,9 +107,7 @@
         },
         "indentSpectra.ignorePatterns": {
           "type": "array",
-          "default": [
-            "/^[ \t]*\\*(?!\\/)/gm"
-          ],
+          "default": [],
           "description": "Regex patterns to ignore (e.g. JSDoc)."
         },
         "indentSpectra.ignoredLanguages": {

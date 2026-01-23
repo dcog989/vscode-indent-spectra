@@ -76,20 +76,22 @@ export class IndentationEngine {
         let hasSpace = false;
         let i = 0;
 
+        // Ensure tabSize is valid to avoid division by zero
+        const safeTabSize = Math.max(1, tabSize);
+
         for (; i < text.length; i++) {
             const charCode = text.charCodeAt(i);
 
             if (charCode === TAB_CHAR_CODE) {
                 hasTab = true;
-                visualWidth += tabSize - (visualWidth % tabSize);
-                // Create blocks at tab boundaries for tab-based indentation
-                if (visualWidth % tabSize === 0) blocks.push(i + 1);
+                visualWidth += safeTabSize - (visualWidth % safeTabSize);
+                // Create blocks at tab boundaries
+                if (visualWidth % safeTabSize === 0) blocks.push(i + 1);
             } else if (charCode === SPACE_CHAR_CODE) {
                 hasSpace = true;
                 visualWidth++;
-                // For pure space indentation, create blocks at 2-space intervals
-                // This ensures common indentation patterns (2-space, 4-space) get colorized
-                if (visualWidth % 2 === 0) blocks.push(i + 1);
+                // Create blocks at tabSize intervals (e.g., every 4 spaces if tabSize is 4)
+                if (visualWidth % safeTabSize === 0) blocks.push(i + 1);
             } else {
                 break;
             }
@@ -98,7 +100,7 @@ export class IndentationEngine {
         const isMixed = hasTab && hasSpace;
         // Only flag as error if tabs are used and indentation doesn't align to tab size
         // Pure space indentation should never be flagged as an error
-        const isError = hasTab && visualWidth > 0 && visualWidth % tabSize !== 0 && !skipErrors;
+        const isError = hasTab && visualWidth > 0 && visualWidth % safeTabSize !== 0 && !skipErrors;
 
         if (isError && visualWidth > 0) {
             blocks.push(i);
