@@ -12,6 +12,94 @@ interface DecorationState {
     isDirty: boolean;
 }
 
+export class DecorationManager implements vscode.Disposable {
+    private decorationSuites = new Map<string, DecorationSuite>();
+    private currentSuite?: DecorationSuite;
+    private currentConfigKey: string = '';
+    private currentThemeKind: vscode.ColorThemeKind;
+
+    constructor(themeKind: vscode.ColorThemeKind) {
+        this.currentThemeKind = themeKind;
+    }
+
+    public getOrCreateSuite(
+        config: IndentSpectraConfig,
+        themeKind: vscode.ColorThemeKind,
+    ): DecorationSuite {
+        const configKey = this.computeConfigKey(config);
+
+        // If theme or config changed, clear existing suites
+        if (configKey !== this.currentConfigKey || themeKind !== this.currentThemeKind) {
+            this.disposeAllSuites();
+            this.currentConfigKey = configKey;
+            this.currentThemeKind = themeKind;
+        }
+
+        if (!this.currentSuite) {
+            this.currentSuite = new DecorationSuite(config, themeKind);
+            const suiteKey = `${configKey}|${themeKind}`;
+            this.decorationSuites.set(suiteKey, this.currentSuite);
+        }
+
+        return this.currentSuite;
+    }
+
+    public getCurrentSuite(): DecorationSuite | undefined {
+        return this.currentSuite;
+    }
+
+    public disposeSuitesForConfig(config: IndentSpectraConfig): void {
+        const configKey = this.computeConfigKey(config);
+        const keysToDispose: string[] = [];
+
+        for (const [key] of this.decorationSuites) {
+            if (key.startsWith(configKey)) {
+                keysToDispose.push(key);
+            }
+        }
+
+        for (const key of keysToDispose) {
+            const suite = this.decorationSuites.get(key);
+            if (suite) {
+                suite.dispose();
+                this.decorationSuites.delete(key);
+            }
+        }
+
+        if (keysToDispose.length > 0) {
+            this.currentSuite = undefined;
+        }
+    }
+
+    public disposeAllSuites(): void {
+        for (const suite of this.decorationSuites.values()) {
+            suite.dispose();
+        }
+        this.decorationSuites.clear();
+        this.currentSuite = undefined;
+    }
+
+    private computeConfigKey(config: IndentSpectraConfig): string {
+        return (
+            config.colors.join(',') +
+            '|' +
+            config.errorColor +
+            '|' +
+            config.mixColor +
+            '|' +
+            config.indicatorStyle +
+            '|' +
+            config.lightIndicatorWidth +
+            '|' +
+            config.activeIndentBrightness
+        );
+    }
+
+    public dispose(): void {
+        this.disposeAllSuites();
+    }
+}
+
 export class DecorationSuite implements vscode.Disposable {
     private decorators: vscode.TextEditorDecorationType[] = [];
     private activeLevelDecorators: vscode.TextEditorDecorationType[] = [];

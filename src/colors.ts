@@ -38,10 +38,5 @@ export const PALETTES: Record<PaletteKey, string[]> = {
     ],
 };
 
-export enum ColorThemeKind {
-    Light = 1,
-    Dark = 2,
-}
-
 // Re-export for backward compatibility
 export type { ColorBrightnessCache } from './ColorUtils';

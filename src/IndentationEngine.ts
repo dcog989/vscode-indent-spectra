@@ -1,8 +1,18 @@
 export interface LineAnalysis {
+    /**
+     * Character positions (0-indexed) where indent boundaries occur.
+     * Each value represents the position after which a new indent level starts.
+     * For example: [4, 8] means indent boundaries after characters 4 and 8.
+     * Used to create Range objects for decoration rendering.
+     */
     blocks: number[];
+    /** Total visual width of indentation accounting for tab expansion */
     visualWidth: number;
+    /** Whether the line contains mixed tabs and spaces in indentation */
     isMixed: boolean;
+    /** Whether the indentation is malformed (not aligned to tab size) */
     isError: boolean;
+    /** Whether the line should be ignored based on ignore patterns */
     isIgnored: boolean;
 }
 

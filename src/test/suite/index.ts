@@ -15,18 +15,16 @@ export async function run(): Promise<void> {
 
     files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
-    return new Promise((resolve, reject) => {
-        try {
-            mocha.run((failures: number) => {
-                if (failures > 0) {
-                    reject(new Error(`${failures} tests failed.`));
-                } else {
-                    resolve();
-                }
-            });
-        } catch (err) {
-            console.error(err);
-            reject(err);
+    try {
+        const failures = await new Promise<number>((resolve) => {
+            mocha.run(resolve);
+        });
+
+        if (failures > 0) {
+            throw new Error(`${failures} tests failed.`);
         }
-    });
+    } catch (err) {
+        console.error(err);
+        throw err;
+    }
 }

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigurationManager } from './ConfigurationManager';
-import { DecorationSuite } from './DecorationSuite';
+import { DecorationManager } from './DecorationManager';
 import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
 import { LRUCache } from './LRUCache';
 
@@ -18,7 +18,7 @@ interface IndentationAnalysisResult {
 }
 
 export class IndentSpectra implements vscode.Disposable {
-    private decorationSuite?: DecorationSuite;
+    private decorationManager: DecorationManager;
     private configManager: ConfigurationManager;
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
@@ -51,10 +51,7 @@ export class IndentSpectra implements vscode.Disposable {
     constructor() {
         this.configManager = new ConfigurationManager();
         this.configManager.onDidChangeConfig(() => this.handleConfigChange());
-        this.decorationSuite = new DecorationSuite(
-            this.configManager.current,
-            vscode.window.activeColorTheme.kind,
-        );
+        this.decorationManager = new DecorationManager(vscode.window.activeColorTheme.kind);
         this.decoratorCacheKey = this.computeDecoratorCacheKey(this.configManager.current);
     }
 
@@ -64,8 +61,7 @@ export class IndentSpectra implements vscode.Disposable {
         const newCacheKey = this.computeDecoratorCacheKey(config);
 
         if (newCacheKey !== this.decoratorCacheKey) {
-            this.decorationSuite?.dispose();
-            this.decorationSuite = new DecorationSuite(config, vscode.window.activeColorTheme.kind);
+            this.decorationManager.disposeSuitesForConfig(config);
             this.decoratorCacheKey = newCacheKey;
         }
 
@@ -110,8 +106,7 @@ export class IndentSpectra implements vscode.Disposable {
         const config = this.configManager.current;
 
         if (config.activeIndentBrightness > 0) {
-            this.decorationSuite?.dispose();
-            this.decorationSuite = new DecorationSuite(config, vscode.window.activeColorTheme.kind);
+            this.decorationManager.disposeAllSuites();
             this.lastAppliedState.clear();
             this.triggerUpdate(undefined, true);
         }
@@ -123,17 +118,17 @@ export class IndentSpectra implements vscode.Disposable {
         this.ignoredLinesCache.delete(uriString);
         this.lastTabSize.delete(uriString);
         this.lastAppliedState.delete(uriString);
-        this.decorationSuite?.clearState(uri);
+        this.decorationManager.getCurrentSuite()?.clearState(uri);
     }
 
     public clearAppliedState(uri: vscode.Uri): void {
         this.lastAppliedState.delete(uri.toString());
-        this.decorationSuite?.clearState(uri);
+        this.decorationManager.getCurrentSuite()?.clearState(uri);
     }
 
     public dispose(): void {
         this.isDisposed = true;
-        this.decorationSuite?.dispose();
+        this.decorationManager.dispose();
         this.cancelCurrentWork();
         this.configManager.dispose();
         if (this.timeout) clearTimeout(this.timeout);
@@ -345,12 +340,16 @@ export class IndentSpectra implements vscode.Disposable {
             }
         }
 
+        const decorationSuite = this.decorationManager.getOrCreateSuite(
+            config,
+            vscode.window.activeColorTheme.kind,
+        );
         const spectra: vscode.Range[][] = Array.from(
-            { length: this.decorationSuite?.getDecoratorCount() ?? 0 },
+            { length: decorationSuite?.getDecoratorCount() ?? 0 },
             () => [],
         );
         const activeLevelSpectra: vscode.Range[][] = Array.from(
-            { length: this.decorationSuite?.getDecoratorCount() ?? 0 },
+            { length: decorationSuite?.getDecoratorCount() ?? 0 },
             () => [],
         );
         const errors: vscode.Range[] = [];
@@ -388,7 +387,7 @@ export class IndentSpectra implements vscode.Disposable {
             for (let j = 0; j < lineData.blocks.length; j++) {
                 const start = j === 0 ? 0 : lineData.blocks[j - 1];
                 const range = new vscode.Range(i, start, i, lineData.blocks[j]);
-                const decoratorIndex = j % (this.decorationSuite?.getDecoratorCount() ?? 1);
+                const decoratorIndex = j % (decorationSuite?.getDecoratorCount() ?? 1);
 
                 if (inActiveBlock && j === highlightLevel && j < lineData.blocks.length) {
                     activeLevelSpectra[decoratorIndex].push(range);
@@ -444,8 +443,11 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private applyDecorations(editor: vscode.TextEditor, result: IndentationAnalysisResult): void {
-        if (this.isDisposed || !this.decorationSuite) return;
-        this.decorationSuite.apply(
+        if (this.isDisposed) return;
+        const decorationSuite = this.decorationManager.getCurrentSuite();
+        if (!decorationSuite) return;
+
+        decorationSuite.apply(
             editor,
             result.spectra,
             result.activeLevelSpectra,
