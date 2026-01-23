@@ -8,6 +8,8 @@ interface DecorationState {
     activeLevelSpectraHashes: number[];
     errorsHash: number;
     mixedHash: number;
+    documentVersion: number;
+    isDirty: boolean;
 }
 
 export class DecorationSuite implements vscode.Disposable {
@@ -27,6 +29,7 @@ export class DecorationSuite implements vscode.Disposable {
         this.activeLevelDecorators = DecorationFactory.createActiveSpectrumDecorations(
             config,
             themeKind,
+            this.colorCache,
         );
         this.errorDecorator = DecorationFactory.createErrorDecoration(config) ?? undefined;
         this.mixDecorator = DecorationFactory.createMixDecoration(config) ?? undefined;
@@ -51,37 +54,62 @@ export class DecorationSuite implements vscode.Disposable {
         activeLevelSpectra: vscode.Range[][],
         errors: vscode.Range[],
         mixed: vscode.Range[],
+        forceUpdate: boolean = false,
     ): void {
         const editorKey = editor.document.uri.toString();
         const lastState = this.lastState.get(editorKey);
+        const currentVersion = editor.document.version;
 
         const newState: DecorationState = {
             spectraHashes: spectra.map(this.hashRanges.bind(this)),
             activeLevelSpectraHashes: activeLevelSpectra.map(this.hashRanges.bind(this)),
             errorsHash: this.hashRanges(errors),
             mixedHash: this.hashRanges(mixed),
+            documentVersion: currentVersion,
+            isDirty: forceUpdate || lastState?.documentVersion !== currentVersion,
         };
 
-        for (let i = 0; i < this.decorators.length; i++) {
-            if (lastState?.spectraHashes[i] !== newState.spectraHashes[i]) {
+        // Only reapply decorations if state is dirty or hashes have changed
+        const shouldUpdateAll = newState.isDirty || !lastState;
+
+        if (shouldUpdateAll) {
+            // Update all decorations
+            for (let i = 0; i < this.decorators.length; i++) {
                 editor.setDecorations(this.decorators[i], spectra[i]);
             }
-        }
-
-        for (let i = 0; i < this.activeLevelDecorators.length; i++) {
-            if (lastState?.activeLevelSpectraHashes[i] !== newState.activeLevelSpectraHashes[i]) {
+            for (let i = 0; i < this.activeLevelDecorators.length; i++) {
                 editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
+            }
+            if (this.errorDecorator) {
+                editor.setDecorations(this.errorDecorator, errors);
+            }
+            if (this.mixDecorator) {
+                editor.setDecorations(this.mixDecorator, mixed);
+            }
+        } else {
+            // Only update decorations whose hashes have changed
+            for (let i = 0; i < this.decorators.length; i++) {
+                if (lastState.spectraHashes[i] !== newState.spectraHashes[i]) {
+                    editor.setDecorations(this.decorators[i], spectra[i]);
+                }
+            }
+            for (let i = 0; i < this.activeLevelDecorators.length; i++) {
+                if (
+                    lastState.activeLevelSpectraHashes[i] !== newState.activeLevelSpectraHashes[i]
+                ) {
+                    editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
+                }
+            }
+            if (this.errorDecorator && lastState.errorsHash !== newState.errorsHash) {
+                editor.setDecorations(this.errorDecorator, errors);
+            }
+            if (this.mixDecorator && lastState.mixedHash !== newState.mixedHash) {
+                editor.setDecorations(this.mixDecorator, mixed);
             }
         }
 
-        if (this.errorDecorator && lastState?.errorsHash !== newState.errorsHash) {
-            editor.setDecorations(this.errorDecorator, errors);
-        }
-
-        if (this.mixDecorator && lastState?.mixedHash !== newState.mixedHash) {
-            editor.setDecorations(this.mixDecorator, mixed);
-        }
-
+        // Clear dirty flag after applying
+        newState.isDirty = false;
         this.lastState.set(editorKey, newState);
     }
 
@@ -91,6 +119,10 @@ export class DecorationSuite implements vscode.Disposable {
 
     public getDecoratorCount(): number {
         return this.decorators.length;
+    }
+
+    public getColorCache(): ColorBrightnessCache {
+        return this.colorCache;
     }
 
     public dispose(): void {

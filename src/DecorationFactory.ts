@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
+import type { ColorBrightnessCache} from './colors';
+import { ColorThemeKind } from './colors';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 export interface DecorationOptions {
@@ -72,19 +74,19 @@ export class DecorationFactory {
     public static createActiveSpectrumDecorations(
         config: IndentSpectraConfig,
         themeKind: vscode.ColorThemeKind,
+        colorCache?: ColorBrightnessCache,
     ): vscode.TextEditorDecorationType[] {
         if (config.activeIndentBrightness <= 0) {
             return [];
         }
 
         const isLightTheme = themeKind === vscode.ColorThemeKind.Light;
+        const internalThemeKind = isLightTheme ? ColorThemeKind.Light : ColorThemeKind.Dark;
 
         return config.colors.map((color) => {
-            const brightenedColor = ColorUtils.brightenColor(
-                color,
-                config.activeIndentBrightness,
-                isLightTheme,
-            );
+            const brightenedColor = colorCache
+                ? colorCache.getBrightened(color, config.activeIndentBrightness, internalThemeKind)
+                : ColorUtils.brightenColor(color, config.activeIndentBrightness, isLightTheme);
             const options: DecorationOptions = {
                 color: brightenedColor,
                 isActive: true,

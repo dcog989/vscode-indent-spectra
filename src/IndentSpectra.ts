@@ -5,7 +5,7 @@ import { DecorationSuite } from './DecorationSuite';
 import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
 import { LRUCache } from './LRUCache';
 
-const CHUNK_SIZE_LINES = 1000;
+const YIELD_EVERY_LINES = 200;
 const VISIBLE_LINE_BUFFER = 50;
 const MASSIVE_FILE_THRESHOLD = 50000;
 const MAX_CACHED_DOCUMENTS = 50;
@@ -344,7 +344,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         for (let idx = 0; idx < sortedLines.length; idx++) {
             const i = sortedLines[idx];
-            if (idx % CHUNK_SIZE_LINES === 0 && performance.now() - lastYieldTime > 10) {
+            if (idx % YIELD_EVERY_LINES === 0 && performance.now() - lastYieldTime > 5) {
                 await new Promise((resolve) => setTimeout(resolve, 0));
                 if (token.isCancellationRequested) return null;
                 lastYieldTime = performance.now();
@@ -463,7 +463,7 @@ export class IndentSpectra implements vscode.Disposable {
             let match: RegExpExecArray | null;
             let matchCount = 0;
             while ((match = regex.exec(text)) !== null) {
-                if (++matchCount % 100 === 0 && performance.now() - lastYieldTime > 10) {
+                if (++matchCount % 50 === 0 && performance.now() - lastYieldTime > 5) {
                     await new Promise((resolve) => setTimeout(resolve, 0));
                     if (token.isCancellationRequested) return ignoredLines;
                     lastYieldTime = performance.now();
