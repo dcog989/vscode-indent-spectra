@@ -94,10 +94,12 @@ export class IndentSpectra implements vscode.Disposable {
         this.ignoredLinesCache.delete(uriString);
         this.lastTabSize.delete(uriString);
         this.lastAppliedState.delete(uriString);
+        this.decorationSuite?.clearState(uri);
     }
 
     public clearAppliedState(uri: vscode.Uri): void {
         this.lastAppliedState.delete(uri.toString());
+        this.decorationSuite?.clearState(uri);
     }
 
     public dispose(): void {
@@ -440,19 +442,19 @@ export class IndentSpectra implements vscode.Disposable {
             if (text[i] === '\n') lineStarts.push(i + 1);
         }
 
-        let lastSearchIndex = 0;
         const getLineIndex = (offset: number): number => {
-            if (offset < lineStarts[lastSearchIndex]) {
-                lastSearchIndex = 0;
+            let low = 0;
+            let high = lineStarts.length - 1;
+            
+            while (low < high) {
+                const mid = Math.floor((low + high + 1) / 2);
+                if (lineStarts[mid] <= offset) {
+                    low = mid;
+                } else {
+                    high = mid - 1;
+                }
             }
-
-            while (
-                lastSearchIndex < lineStarts.length - 1 &&
-                lineStarts[lastSearchIndex + 1] <= offset
-            ) {
-                lastSearchIndex++;
-            }
-            return lastSearchIndex;
+            return low;
         };
 
         let lastYieldTime = performance.now();

@@ -15,6 +15,8 @@ export interface DocumentIndentData {
 const METADATA_MIXED = 1;
 const METADATA_ERROR = 2;
 const METADATA_IGNORED = 4;
+const TAB_CHAR_CODE = 9;
+const SPACE_CHAR_CODE = 32;
 
 export class IndentationEngine {
     public static analyzeLine(
@@ -25,23 +27,31 @@ export class IndentationEngine {
     ): LineAnalysis {
         const blocks: number[] = [];
         let visualWidth = 0;
-        let isMixed = false;
-        let isError = false;
+        let hasTab = false;
+        let hasSpace = false;
+        let i = 0;
 
-        const indentMatch = text.match(/^[\t ]+/);
-        if (indentMatch) {
-            const matchText = indentMatch[0];
-            isMixed = matchText.includes('\t') && matchText.includes(' ');
-
-            for (let i = 0; i < matchText.length; i++) {
-                visualWidth += matchText[i] === '\t' ? tabSize - (visualWidth % tabSize) : 1;
+        for (; i < text.length; i++) {
+            const charCode = text.charCodeAt(i);
+            
+            if (charCode === TAB_CHAR_CODE) {
+                hasTab = true;
+                visualWidth += tabSize - (visualWidth % tabSize);
                 if (visualWidth % tabSize === 0) blocks.push(i + 1);
+            } else if (charCode === SPACE_CHAR_CODE) {
+                hasSpace = true;
+                visualWidth++;
+                if (visualWidth % tabSize === 0) blocks.push(i + 1);
+            } else {
+                break;
             }
+        }
 
-            if (visualWidth % tabSize !== 0) {
-                blocks.push(matchText.length);
-                isError = !skipErrors;
-            }
+        const isMixed = hasTab && hasSpace;
+        const isError = visualWidth > 0 && visualWidth % tabSize !== 0 && !skipErrors;
+
+        if (isError && visualWidth > 0) {
+            blocks.push(i);
         }
 
         return { blocks, visualWidth, isMixed, isError, isIgnored };

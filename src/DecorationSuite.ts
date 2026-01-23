@@ -2,11 +2,19 @@ import * as vscode from 'vscode';
 import { brightenColor, ColorThemeKind } from './colors';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
+interface DecorationState {
+    spectra: string[];
+    activeLevelSpectra: string[];
+    errors: string;
+    mixed: string;
+}
+
 export class DecorationSuite implements vscode.Disposable {
     private decorators: vscode.TextEditorDecorationType[] = [];
     private activeLevelDecorators: vscode.TextEditorDecorationType[] = [];
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
+    private lastState = new Map<string, DecorationState>();
 
     constructor(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind) {
         this.initialize(config, themeKind);
@@ -64,6 +72,11 @@ export class DecorationSuite implements vscode.Disposable {
         }
     }
 
+    private serializeRanges(ranges: vscode.Range[]): string {
+        if (ranges.length === 0) return '';
+        return ranges.map(r => `${r.start.line},${r.start.character},${r.end.line},${r.end.character}`).join(';');
+    }
+
     public apply(
         editor: vscode.TextEditor,
         spectra: vscode.Range[][],
@@ -71,21 +84,41 @@ export class DecorationSuite implements vscode.Disposable {
         errors: vscode.Range[],
         mixed: vscode.Range[],
     ): void {
-        this.decorators.forEach((dec, i) => editor.setDecorations(dec, spectra[i]));
+        const editorKey = editor.document.uri.toString();
+        const lastState = this.lastState.get(editorKey);
 
-        if (this.activeLevelDecorators.length > 0) {
-            this.activeLevelDecorators.forEach((dec, i) =>
-                editor.setDecorations(dec, activeLevelSpectra[i]),
-            );
+        const newState: DecorationState = {
+            spectra: spectra.map(this.serializeRanges),
+            activeLevelSpectra: activeLevelSpectra.map(this.serializeRanges),
+            errors: this.serializeRanges(errors),
+            mixed: this.serializeRanges(mixed),
+        };
+
+        for (let i = 0; i < this.decorators.length; i++) {
+            if (!lastState || lastState.spectra[i] !== newState.spectra[i]) {
+                editor.setDecorations(this.decorators[i], spectra[i]);
+            }
         }
 
-        if (this.errorDecorator) {
+        for (let i = 0; i < this.activeLevelDecorators.length; i++) {
+            if (!lastState || lastState.activeLevelSpectra[i] !== newState.activeLevelSpectra[i]) {
+                editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
+            }
+        }
+
+        if (this.errorDecorator && (!lastState || lastState.errors !== newState.errors)) {
             editor.setDecorations(this.errorDecorator, errors);
         }
 
-        if (this.mixDecorator) {
+        if (this.mixDecorator && (!lastState || lastState.mixed !== newState.mixed)) {
             editor.setDecorations(this.mixDecorator, mixed);
         }
+
+        this.lastState.set(editorKey, newState);
+    }
+
+    public clearState(uri: vscode.Uri): void {
+        this.lastState.delete(uri.toString());
     }
 
     public getDecoratorCount(): number {
@@ -101,5 +134,6 @@ export class DecorationSuite implements vscode.Disposable {
         this.errorDecorator = undefined;
         this.mixDecorator?.dispose();
         this.mixDecorator = undefined;
+        this.lastState.clear();
     }
 }
