@@ -4,11 +4,13 @@ import { ConfigurationManager } from './ConfigurationManager';
 import { DecorationManager } from './DecorationManager';
 import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
 import { LRUCache } from './LRUCache';
+import { ConfigUtils } from './ConfigUtils';
 
 const YIELD_EVERY_LINES = 200;
 const VISIBLE_LINE_BUFFER = 50;
 const MASSIVE_FILE_THRESHOLD = 50000;
 const MAX_CACHED_DOCUMENTS = 50;
+const YIELD_TIMEOUT_MS = 5;
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
@@ -34,7 +36,7 @@ export class IndentSpectra implements vscode.Disposable {
         string,
         { sequence: number; event: vscode.TextDocumentChangeEvent }
     >();
-    private rangesHashCache = new WeakMap<readonly vscode.Range[], number>();
+
     private decorationArraysCache = new Map<
         string,
         { spectra: vscode.Range[][]; activeLevelSpectra: vscode.Range[][] }
@@ -92,19 +94,7 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
-        return (
-            config.colors.join(',') +
-            '|' +
-            config.errorColor +
-            '|' +
-            config.mixColor +
-            '|' +
-            config.indicatorStyle +
-            '|' +
-            config.lightIndicatorWidth +
-            '|' +
-            config.activeIndentBrightness
-        );
+        return ConfigUtils.computeConfigKey(config);
     }
 
     public reloadConfig(): void {
@@ -237,7 +227,7 @@ export class IndentSpectra implements vscode.Disposable {
         const activeChar =
             config.activeIndentBrightness > 0 ? editor.selection.active.character : -1;
 
-        const rangesHash = this.hashRanges(ranges);
+        const rangesHash = ConfigUtils.hashRanges(ranges);
         const stateKey = `${doc.version}-${tabSize}-${activeLine}-${activeChar}-${rangesHash}`;
         if (this.lastAppliedState.get(uri) === stateKey) return;
 
@@ -405,7 +395,10 @@ export class IndentSpectra implements vscode.Disposable {
 
         for (let idx = 0; idx < sortedLines.length; idx++) {
             const i = sortedLines[idx];
-            if (idx % YIELD_EVERY_LINES === 0 && performance.now() - lastYieldTime > 5) {
+            if (
+                idx % YIELD_EVERY_LINES === 0 &&
+                performance.now() - lastYieldTime > YIELD_TIMEOUT_MS
+            ) {
                 await new Promise((resolve) => setTimeout(resolve, 0));
                 if (token.isCancellationRequested) return null;
                 lastYieldTime = performance.now();
@@ -496,28 +489,6 @@ export class IndentSpectra implements vscode.Disposable {
         return vscode.workspace.getConfiguration('editor').get<number>('tabSize') ?? 4;
     }
 
-    private hashRanges(ranges: readonly vscode.Range[]): number {
-        if (ranges.length === 0) return 0;
-
-        // Check cache first
-        const cached = this.rangesHashCache.get(ranges);
-        if (cached !== undefined) return cached;
-
-        // Simple hash: combine line numbers and positions
-        let hash = ranges.length * 31;
-        for (const range of ranges) {
-            hash = (hash << 5) - hash + range.start.line;
-            hash = (hash << 5) - hash + range.start.character;
-            hash = (hash << 5) - hash + range.end.line;
-            hash = (hash << 5) - hash + range.end.character;
-        }
-        const result = hash >>> 0; // Convert to unsigned 32-bit
-
-        // Cache the result
-        this.rangesHashCache.set(ranges, result);
-        return result;
-    }
-
     private async identifyIgnoredLines(
         doc: vscode.TextDocument,
         token: vscode.CancellationToken,
@@ -561,7 +532,10 @@ export class IndentSpectra implements vscode.Disposable {
             let match: RegExpExecArray | null;
             let matchCount = 0;
             while ((match = regex.exec(text)) !== null) {
-                if (++matchCount % 50 === 0 && performance.now() - lastYieldTime > 5) {
+                if (
+                    ++matchCount % 50 === 0 &&
+                    performance.now() - lastYieldTime > YIELD_TIMEOUT_MS
+                ) {
                     await new Promise((resolve) => setTimeout(resolve, 0));
                     if (token.isCancellationRequested) return ignoredLines;
                     lastYieldTime = performance.now();

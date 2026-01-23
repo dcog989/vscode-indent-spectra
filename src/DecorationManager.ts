@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
+import { ConfigUtils } from './ConfigUtils';
 
 interface DecorationState {
     spectraHashes: number[];
@@ -81,19 +82,7 @@ export class DecorationManager implements vscode.Disposable {
     }
 
     private computeConfigKey(config: IndentSpectraConfig): string {
-        return (
-            config.colors.join(',') +
-            '|' +
-            config.errorColor +
-            '|' +
-            config.mixColor +
-            '|' +
-            config.indicatorStyle +
-            '|' +
-            config.lightIndicatorWidth +
-            '|' +
-            config.activeIndentBrightness
-        );
+        return ConfigUtils.computeConfigKey(config);
     }
 
     public dispose(): void {
