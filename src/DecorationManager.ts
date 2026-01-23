@@ -122,17 +122,28 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator = DecorationFactory.createMixDecoration(config) ?? undefined;
     }
 
+    private rangeHashCache = new WeakMap<vscode.Range[], number>();
+
     private hashRanges(ranges: vscode.Range[]): number {
         if (ranges.length === 0) return 0;
 
-        let hash = 5381;
+        // Check cache first
+        const cached = this.rangeHashCache.get(ranges);
+        if (cached !== undefined) return cached;
+
+        // Simple hash: combine line numbers and positions
+        let hash = ranges.length * 31;
         for (const range of ranges) {
-            hash = (hash << 5) + hash + range.start.line;
-            hash = (hash << 5) + hash + range.start.character;
-            hash = (hash << 5) + hash + range.end.line;
-            hash = (hash << 5) + hash + range.end.character;
+            hash = (hash << 5) - hash + range.start.line;
+            hash = (hash << 5) - hash + range.start.character;
+            hash = (hash << 5) - hash + range.end.line;
+            hash = (hash << 5) - hash + range.end.character;
         }
-        return hash >>> 0; // Convert to unsigned 32-bit
+        const result = hash >>> 0; // Convert to unsigned 32-bit
+
+        // Cache the result
+        this.rangeHashCache.set(ranges, result);
+        return result;
     }
 
     public apply(
@@ -218,6 +229,7 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator?.dispose();
         this.mixDecorator = undefined;
         this.lastState.clear();
+        this.rangeHashCache = new WeakMap();
         ColorUtils.clearBrightnessCache();
     }
 }
