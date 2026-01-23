@@ -1,6 +1,6 @@
 # VS Code Indent Spectra Guidelines
 
-Indent Spectra is an extension for VS Code that colorises line indentation to aid user readability. It focuses on performance, minimal resource usage.
+Indent Spectra is an extension for VS Code that colorises line indentation to aid user readability. It prioritises performance, minimal resource usage.
 
 ## Tech Stack
 
