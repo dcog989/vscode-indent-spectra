@@ -85,5 +85,6 @@ export class ConfigurationManager {
 
     public dispose(): void {
         this._onDidChangeConfig.dispose();
+        PatternCompiler.clearCache();
     }
 }

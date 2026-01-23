@@ -34,6 +34,11 @@ export class IndentSpectra implements vscode.Disposable {
         string,
         { sequence: number; event: vscode.TextDocumentChangeEvent }
     >();
+    private rangesHashCache = new WeakMap<readonly vscode.Range[], number>();
+    private decorationArraysCache = new Map<
+        string,
+        { spectra: vscode.Range[][]; activeLevelSpectra: vscode.Range[][] }
+    >();
 
     public checkAndUpdateDirtyDocument(uri: vscode.Uri): void {
         const uriString = uri.toString();
@@ -232,7 +237,8 @@ export class IndentSpectra implements vscode.Disposable {
         const activeChar =
             config.activeIndentBrightness > 0 ? editor.selection.active.character : -1;
 
-        const stateKey = `${doc.version}-${tabSize}-${activeLine}-${activeChar}-${JSON.stringify(ranges)}`;
+        const rangesHash = this.hashRanges(ranges);
+        const stateKey = `${doc.version}-${tabSize}-${activeLine}-${activeChar}-${rangesHash}`;
         if (this.lastAppliedState.get(uri) === stateKey) return;
 
         if (this.lastTabSize.get(uri) !== tabSize) {
@@ -361,14 +367,24 @@ export class IndentSpectra implements vscode.Disposable {
             config,
             vscode.window.activeColorTheme.kind,
         );
-        const spectra: vscode.Range[][] = Array.from(
-            { length: decorationSuite?.getDecoratorCount() ?? 0 },
-            () => [],
-        );
-        const activeLevelSpectra: vscode.Range[][] = Array.from(
-            { length: decorationSuite?.getDecoratorCount() ?? 0 },
-            () => [],
-        );
+        const decoratorCount = decorationSuite?.getDecoratorCount() ?? 0;
+        const cacheKey = `${decoratorCount}`;
+
+        let cachedArrays = this.decorationArraysCache.get(cacheKey);
+        if (!cachedArrays) {
+            cachedArrays = {
+                spectra: Array.from({ length: decoratorCount }, () => []),
+                activeLevelSpectra: Array.from({ length: decoratorCount }, () => []),
+            };
+            this.decorationArraysCache.set(cacheKey, cachedArrays);
+        }
+
+        // Clear arrays for reuse
+        cachedArrays.spectra.forEach((array) => (array.length = 0));
+        cachedArrays.activeLevelSpectra.forEach((array) => (array.length = 0));
+
+        const spectra = cachedArrays.spectra;
+        const activeLevelSpectra = cachedArrays.activeLevelSpectra;
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
         const linesToProcess = new Set<number>();
@@ -480,6 +496,28 @@ export class IndentSpectra implements vscode.Disposable {
         return vscode.workspace.getConfiguration('editor').get<number>('tabSize') ?? 4;
     }
 
+    private hashRanges(ranges: readonly vscode.Range[]): number {
+        if (ranges.length === 0) return 0;
+
+        // Check cache first
+        const cached = this.rangesHashCache.get(ranges);
+        if (cached !== undefined) return cached;
+
+        // Simple hash: combine line numbers and positions
+        let hash = ranges.length * 31;
+        for (const range of ranges) {
+            hash = (hash << 5) - hash + range.start.line;
+            hash = (hash << 5) - hash + range.start.character;
+            hash = (hash << 5) - hash + range.end.line;
+            hash = (hash << 5) - hash + range.end.character;
+        }
+        const result = hash >>> 0; // Convert to unsigned 32-bit
+
+        // Cache the result
+        this.rangesHashCache.set(ranges, result);
+        return result;
+    }
+
     private async identifyIgnoredLines(
         doc: vscode.TextDocument,
         token: vscode.CancellationToken,
@@ -516,9 +554,10 @@ export class IndentSpectra implements vscode.Disposable {
 
         let lastYieldTime = performance.now();
         for (const pattern of patterns) {
-            // Create a new regex with global flag for finding all matches
+            // Get cached regex with global flag for finding all matches
             const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
-            const regex = new RegExp(pattern.source, flags);
+            const globalPattern = { source: pattern.source, flags };
+            const regex = this.configManager.createRegExp(globalPattern);
             let match: RegExpExecArray | null;
             let matchCount = 0;
             while ((match = regex.exec(text)) !== null) {

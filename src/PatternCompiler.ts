@@ -4,6 +4,8 @@ export interface CompiledPattern {
 }
 
 export class PatternCompiler {
+    private static regexCache = new Map<string, RegExp>();
+
     public static compile(patterns: string[], addGlobal: boolean = false): CompiledPattern[] {
         return patterns
             .map((pattern) => this.compilePattern(pattern, addGlobal))
@@ -50,6 +52,19 @@ export class PatternCompiler {
     }
 
     public static createRegExp(pattern: CompiledPattern): RegExp {
-        return new RegExp(pattern.source, pattern.flags);
+        const cacheKey = `${pattern.source}|${pattern.flags}`;
+
+        // Check cache first
+        const cached = this.regexCache.get(cacheKey);
+        if (cached !== undefined) return cached;
+
+        // Create and cache new regex
+        const regex = new RegExp(pattern.source, pattern.flags);
+        this.regexCache.set(cacheKey, regex);
+        return regex;
+    }
+
+    public static clearCache(): void {
+        this.regexCache.clear();
     }
 }
