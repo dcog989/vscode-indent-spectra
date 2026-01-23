@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigurationManager } from './ConfigurationManager';
+import { LRUCache } from './LRUCache';
 
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
 const MASSIVE_FILE_THRESHOLD = 50000;
+const MAX_CACHED_DOCUMENTS = 50;
 
 interface IndentationAnalysisResult {
     spectra: vscode.Range[][];
@@ -31,10 +33,10 @@ export class IndentSpectra implements vscode.Disposable {
     private timeout: NodeJS.Timeout | null = null;
     private isDisposed = false;
     private decoratorCacheKey: string | null = null;
-    private lineCache = new Map<string, (LineAnalysis | undefined)[]>();
-    private ignoredLinesCache = new Map<string, Set<number>>();
-    private lastTabSize = new Map<string, number>();
-    private lastAppliedState = new Map<string, string>();
+    private lineCache = new LRUCache<string, (LineAnalysis | undefined)[]>(MAX_CACHED_DOCUMENTS);
+    private ignoredLinesCache = new LRUCache<string, Set<number>>(MAX_CACHED_DOCUMENTS);
+    private lastTabSize = new LRUCache<string, number>(MAX_CACHED_DOCUMENTS);
+    private lastAppliedState = new LRUCache<string, string>(MAX_CACHED_DOCUMENTS);
     private cancellationSource?: vscode.CancellationTokenSource;
 
     constructor() {
@@ -61,14 +63,19 @@ export class IndentSpectra implements vscode.Disposable {
     }
 
     private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
-        return JSON.stringify({
-            colors: config.colors,
-            errorColor: config.errorColor,
-            mixColor: config.mixColor,
-            style: config.indicatorStyle,
-            width: config.lightIndicatorWidth,
-            activeIndentBrightness: config.activeIndentBrightness,
-        });
+        return (
+            config.colors.join(',') +
+            '|' +
+            config.errorColor +
+            '|' +
+            config.mixColor +
+            '|' +
+            config.indicatorStyle +
+            '|' +
+            config.lightIndicatorWidth +
+            '|' +
+            config.activeIndentBrightness
+        );
     }
 
     private brightenColor(color: string, brightness: number): string {
@@ -567,15 +574,19 @@ export class IndentSpectra implements vscode.Disposable {
             if (text[i] === '\n') lineStarts.push(i + 1);
         }
 
+        let lastSearchIndex = 0;
         const getLineIndex = (offset: number): number => {
-            let low = 0,
-                high = lineStarts.length - 1;
-            while (low <= high) {
-                const mid = (low + high) >> 1;
-                if (lineStarts[mid] <= offset) low = mid + 1;
-                else high = mid - 1;
+            if (offset < lineStarts[lastSearchIndex]) {
+                lastSearchIndex = 0;
             }
-            return high;
+
+            while (
+                lastSearchIndex < lineStarts.length - 1 &&
+                lineStarts[lastSearchIndex + 1] <= offset
+            ) {
+                lastSearchIndex++;
+            }
+            return lastSearchIndex;
         };
 
         let lastYieldTime = performance.now();
