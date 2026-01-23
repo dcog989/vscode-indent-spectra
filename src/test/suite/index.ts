@@ -8,10 +8,19 @@ export async function run(): Promise<void> {
         ui: 'tdd',
         color: true,
         timeout: 10000,
+        reporter: 'spec',
     });
 
     const testsRoot = path.resolve(__dirname, '..');
-    const files = await glob('**/**.test.js', { cwd: testsRoot });
+
+    // Glob for tests using standard pattern
+    const files = await glob('**/*.test.js', { cwd: testsRoot });
+
+    if (files.length === 0) {
+        throw new Error('No test files found within ' + testsRoot);
+    }
+
+    console.log(`Found ${files.length} test files.`);
 
     files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 

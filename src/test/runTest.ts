@@ -11,6 +11,12 @@ async function main() {
             extensionTestsPath,
             // Match the version in your package.json
             version: '1.108.1',
+            launchArgs: [
+                '--disable-workspace-trust',
+                '--disable-gpu',
+                '--skip-welcome',
+                '--skip-release-notes',
+            ],
         });
     } catch (err) {
         console.error('Failed to run tests', err);

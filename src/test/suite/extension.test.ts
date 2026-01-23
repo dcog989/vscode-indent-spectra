@@ -574,7 +574,9 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const { IndentationEngine } = await import('../../IndentationEngine');
 
         // Test 2-space indentation creates blocks correctly
-        const result = IndentationEngine.analyzeLine('  "key": "value"', 4, false, false);
+        // NOTE: We pass tabSize=2 here. If we passed 4, result.blocks.length would be 0
+        // because the engine now strictly respects tabSize to avoid visual artifacts.
+        const result = IndentationEngine.analyzeLine('  "key": "value"', 2, false, false);
 
         assert.ok(result.blocks.length > 0, '2-space indentation should create blocks');
         assert.strictEqual(result.isError, false, '2-space indentation should not be an error');
