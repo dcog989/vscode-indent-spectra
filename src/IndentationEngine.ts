@@ -12,11 +12,54 @@ export interface DocumentIndentData {
     metadata: Uint8Array;
 }
 
-const METADATA_MIXED = 1;
-const METADATA_ERROR = 2;
-const METADATA_IGNORED = 4;
 const TAB_CHAR_CODE = 9;
 const SPACE_CHAR_CODE = 32;
+
+class LineMetadata {
+    private static readonly MIXED_FLAG = 1;
+    private static readonly ERROR_FLAG = 2;
+    private static readonly IGNORED_FLAG = 4;
+
+    public static encode(isMixed: boolean, isError: boolean, isIgnored: boolean): number {
+        let flags = 0;
+        if (isMixed) flags |= this.MIXED_FLAG;
+        if (isError) flags |= this.ERROR_FLAG;
+        if (isIgnored) flags |= this.IGNORED_FLAG;
+        return flags;
+    }
+
+    public static decode(flags: number): { isMixed: boolean; isError: boolean; isIgnored: boolean } {
+        return {
+            isMixed: (flags & this.MIXED_FLAG) !== 0,
+            isError: (flags & this.ERROR_FLAG) !== 0,
+            isIgnored: (flags & this.IGNORED_FLAG) !== 0,
+        };
+    }
+
+    public static setMixed(flags: number): number {
+        return flags | this.MIXED_FLAG;
+    }
+
+    public static setError(flags: number): number {
+        return flags | this.ERROR_FLAG;
+    }
+
+    public static setIgnored(flags: number): number {
+        return flags | this.IGNORED_FLAG;
+    }
+
+    public static isMixed(flags: number): boolean {
+        return (flags & this.MIXED_FLAG) !== 0;
+    }
+
+    public static isError(flags: number): boolean {
+        return (flags & this.ERROR_FLAG) !== 0;
+    }
+
+    public static isIgnored(flags: number): boolean {
+        return (flags & this.IGNORED_FLAG) !== 0;
+    }
+}
 
 export class IndentationEngine {
     public static analyzeLine(
@@ -78,12 +121,11 @@ export class IndentationEngine {
         }
 
         data.lineOffsets[lineIndex + 1] = offsetStart + blocks.length;
-
-        let flags = 0;
-        if (analysis.isMixed) flags |= METADATA_MIXED;
-        if (analysis.isError) flags |= METADATA_ERROR;
-        if (analysis.isIgnored) flags |= METADATA_IGNORED;
-        data.metadata[lineIndex] = flags;
+        data.metadata[lineIndex] = LineMetadata.encode(
+            analysis.isMixed,
+            analysis.isError,
+            analysis.isIgnored,
+        );
     }
 
     public static getLineData(data: DocumentIndentData, lineIndex: number): LineAnalysis {
@@ -96,13 +138,13 @@ export class IndentationEngine {
             blocks.push(data.blockData[offsetStart + i]);
         }
 
-        const flags = data.metadata[lineIndex];
+        const decoded = LineMetadata.decode(data.metadata[lineIndex]);
         return {
             blocks,
             visualWidth: blockCount > 0 ? blocks[blocks.length - 1] : 0,
-            isMixed: (flags & METADATA_MIXED) !== 0,
-            isError: (flags & METADATA_ERROR) !== 0,
-            isIgnored: (flags & METADATA_IGNORED) !== 0,
+            isMixed: decoded.isMixed,
+            isError: decoded.isError,
+            isIgnored: decoded.isIgnored,
         };
     }
 

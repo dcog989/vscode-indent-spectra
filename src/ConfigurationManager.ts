@@ -1,14 +1,10 @@
 import * as vscode from 'vscode';
 import { CSS_NAMED_COLORS, PALETTES, type PaletteKey } from './colors';
+import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
 
 const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const RGBA_COLOR_REGEX =
     /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
-
-interface CompiledPattern {
-    source: string;
-    flags: string;
-}
 
 export interface IndentSpectraConfig {
     updateDelay: number;
@@ -56,7 +52,7 @@ export class ConfigurationManager {
             errorColor: this.sanitizeColor(config.get<string>('errorColor', '')),
             mixColor: this.sanitizeColor(config.get<string>('mixColor', '')),
             ignorePatterns: config.get<string[]>('ignorePatterns', []),
-            compiledPatterns: this.compilePatterns(config.get<string[]>('ignorePatterns', [])),
+            compiledPatterns: PatternCompiler.compile(config.get<string[]>('ignorePatterns', [])),
             ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
             ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
             indicatorStyle: indicatorStyle as 'classic' | 'light',
@@ -92,30 +88,8 @@ export class ConfigurationManager {
         );
     }
 
-    private compilePatterns(patterns: string[]): CompiledPattern[] {
-        return patterns
-            .map((p) => {
-                try {
-                    let source = p;
-                    let flags = '';
-                    const match = p.match(/^\/(.+)\/([a-z]*)$/i);
-                    if (match) {
-                        source = match[1];
-                        flags = match[2];
-                    }
-                    const flagSet = new Set(flags.toLowerCase().split(''));
-                    flagSet.add('g');
-                    flagSet.add('m');
-                    return { source, flags: Array.from(flagSet).join('') };
-                } catch {
-                    return null;
-                }
-            })
-            .filter((r): r is CompiledPattern => r !== null);
-    }
-
     public createRegExp(pattern: CompiledPattern): RegExp {
-        return new RegExp(pattern.source, pattern.flags);
+        return PatternCompiler.createRegExp(pattern);
     }
 
     public dispose(): void {

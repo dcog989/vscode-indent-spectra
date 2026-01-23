@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { brightenColor, ColorThemeKind } from './colors';
+import { ColorBrightnessCache, ColorThemeKind } from './colors';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 interface DecorationState {
@@ -15,6 +15,7 @@ export class DecorationSuite implements vscode.Disposable {
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
     private lastState = new Map<string, DecorationState>();
+    private colorCache = new ColorBrightnessCache();
 
     constructor(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind) {
         this.initialize(config, themeKind);
@@ -48,7 +49,7 @@ export class DecorationSuite implements vscode.Disposable {
 
         if (config.activeIndentBrightness > 0) {
             this.activeLevelDecorators = config.colors.map((color) => {
-                const brightColor = brightenColor(
+                const brightColor = this.colorCache.getBrightened(
                     color,
                     config.activeIndentBrightness,
                     colorThemeKind,
@@ -135,5 +136,6 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator?.dispose();
         this.mixDecorator = undefined;
         this.lastState.clear();
+        this.colorCache.clear();
     }
 }
