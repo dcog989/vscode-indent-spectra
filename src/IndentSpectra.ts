@@ -462,7 +462,6 @@ export class IndentSpectra implements vscode.Disposable {
             const regex = this.configManager.createRegExp(pattern);
             let match: RegExpExecArray | null;
             let matchCount = 0;
-            let lastMatchIndex = -1;
             while ((match = regex.exec(text)) !== null) {
                 if (++matchCount % 100 === 0 && performance.now() - lastYieldTime > 10) {
                     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -473,13 +472,7 @@ export class IndentSpectra implements vscode.Disposable {
                 const endLine = getLineIndex(match.index + (match[0]?.length ?? 0));
                 for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
 
-                if (match.index === lastMatchIndex) {
-                    regex.lastIndex++;
-                    if (regex.lastIndex > text.length) break;
-                }
-                lastMatchIndex = match.index;
-
-                // Safety check: ensure progress even with zero-length matches
+                // Always advance lastIndex to prevent infinite loops with zero-length matches
                 if (match[0]?.length === 0) {
                     regex.lastIndex++;
                     if (regex.lastIndex > text.length) break;

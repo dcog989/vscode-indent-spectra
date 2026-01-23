@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { ColorBrightnessCache } from './colors';
 import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';

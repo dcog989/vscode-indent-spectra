@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
-import { ColorThemeKind } from './colors';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 export interface DecorationOptions {
