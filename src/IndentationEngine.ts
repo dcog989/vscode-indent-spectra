@@ -28,18 +28,6 @@ class LineMetadata {
         return flags;
     }
 
-    public static decode(flags: number): {
-        isMixed: boolean;
-        isError: boolean;
-        isIgnored: boolean;
-    } {
-        return {
-            isMixed: (flags & this.MIXED_FLAG) !== 0,
-            isError: (flags & this.ERROR_FLAG) !== 0,
-            isIgnored: (flags & this.IGNORED_FLAG) !== 0,
-        };
-    }
-
     public static setMixed(flags: number): number {
         return flags | this.MIXED_FLAG;
     }
@@ -180,13 +168,13 @@ export class IndentationEngine {
             blocks.push(data.blockData[offsetStart + i]);
         }
 
-        const decoded = LineMetadata.decode(data.metadata[lineIndex]);
+        const flags = data.metadata[lineIndex];
         return {
             blocks,
             visualWidth: blockCount > 0 ? blocks[blocks.length - 1] : 0,
-            isMixed: decoded.isMixed,
-            isError: decoded.isError,
-            isIgnored: decoded.isIgnored,
+            isMixed: LineMetadata.isMixed(flags),
+            isError: LineMetadata.isError(flags),
+            isIgnored: LineMetadata.isIgnored(flags),
         };
     }
 

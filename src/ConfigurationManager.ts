@@ -1,10 +1,7 @@
 import * as vscode from 'vscode';
-import { CSS_NAMED_COLORS, PALETTES, type PaletteKey } from './colors';
+import { PALETTES, type PaletteKey } from './colors';
+import { ColorUtils } from './ColorUtils';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
-
-const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const RGBA_COLOR_REGEX =
-    /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
 export interface IndentSpectraConfig {
     updateDelay: number;
@@ -68,24 +65,14 @@ export class ConfigurationManager {
 
     private resolveColors(preset: PaletteKey | 'custom', customColors: string[]): string[] {
         if (preset === 'custom') {
-            const valid = customColors.filter((c) => this.isValidColor(c));
+            const valid = customColors.filter((c) => ColorUtils.isValidColor(c));
             return valid.length > 0 ? valid : PALETTES.universal;
         }
         return PALETTES[preset] ?? PALETTES.universal;
     }
 
     private sanitizeColor(color: string): string {
-        return this.isValidColor(color) ? color : '';
-    }
-
-    private isValidColor(color: string): boolean {
-        if (!color || typeof color !== 'string') return false;
-        const trimmed = color.trim();
-        return (
-            HEX_COLOR_REGEX.test(trimmed) ||
-            RGBA_COLOR_REGEX.test(trimmed) ||
-            CSS_NAMED_COLORS.has(trimmed.toLowerCase())
-        );
+        return ColorUtils.sanitizeColor(color);
     }
 
     public createRegExp(pattern: CompiledPattern): RegExp {

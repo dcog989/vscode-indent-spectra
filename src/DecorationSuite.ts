@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { ColorBrightnessCache, ColorThemeKind } from './colors';
+import { ColorBrightnessCache } from './colors';
+import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 interface DecorationState {
@@ -22,55 +23,13 @@ export class DecorationSuite implements vscode.Disposable {
     }
 
     private initialize(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind): void {
-        const colorThemeKind =
-            themeKind === vscode.ColorThemeKind.Light ? ColorThemeKind.Light : ColorThemeKind.Dark;
-
-        const createOptions = (
-            color: string,
-            isActive: boolean,
-        ): vscode.DecorationRenderOptions => {
-            if (config.indicatorStyle === 'light') {
-                const width =
-                    isActive && config.activeIndentBrightness > 0
-                        ? config.lightIndicatorWidth + 1
-                        : config.lightIndicatorWidth;
-                return {
-                    borderWidth: `0 0 0 ${width}px`,
-                    borderStyle: 'solid',
-                    borderColor: color,
-                };
-            }
-            return { backgroundColor: color };
-        };
-
-        this.decorators = config.colors.map((color) =>
-            vscode.window.createTextEditorDecorationType(createOptions(color, false)),
+        this.decorators = DecorationFactory.createSpectrumDecorations(config, themeKind);
+        this.activeLevelDecorators = DecorationFactory.createActiveSpectrumDecorations(
+            config,
+            themeKind,
         );
-
-        if (config.activeIndentBrightness > 0) {
-            this.activeLevelDecorators = config.colors.map((color) => {
-                const brightColor = this.colorCache.getBrightened(
-                    color,
-                    config.activeIndentBrightness,
-                    colorThemeKind,
-                );
-                return vscode.window.createTextEditorDecorationType(
-                    createOptions(brightColor, true),
-                );
-            });
-        }
-
-        if (config.errorColor) {
-            this.errorDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.errorColor,
-            });
-        }
-
-        if (config.mixColor) {
-            this.mixDecorator = vscode.window.createTextEditorDecorationType({
-                backgroundColor: config.mixColor,
-            });
-        }
+        this.errorDecorator = DecorationFactory.createErrorDecoration(config) ?? undefined;
+        this.mixDecorator = DecorationFactory.createMixDecoration(config) ?? undefined;
     }
 
     private hashRanges(ranges: vscode.Range[]): number {
