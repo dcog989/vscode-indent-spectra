@@ -33,16 +33,16 @@
   },
   "scripts": {
     "build": "node esbuild.js --production",
-    "bundle": "bun run check && bun run build",
-    "check-types": "tsc --noEmit",
-    "check": "bun run check-types && bun run lint && prettier --check \"src/**/*.{ts,js,json}\"",
-    "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => fs.rmSync(d, {recursive:true, force:true}))\"",
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "clean": "node -e \"const fs = require('fs'); ['dist', 'out', '.vscode-test'].forEach(d => fs.rmSync(d, {recursive:true, force:true}))\"",
     "compile": "tsc -p ./",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
     "format": "prettier --write \"src/**/*.{ts,js,json}\"",
-    "lint-staged": "eslint src --fix && prettier --write \"src/**/*.{ts,js,json}\"",
+    "lint:fix": "eslint src --ext ts --fix",
     "lint": "eslint src --ext ts",
-    "test": "bun run build && node ./dist/test/runTest.js",
-    "vscode:prepublish": "bun run build",
+    "test": "bun run build && bun run compile && node ./out/test/runTest.js",
+    "typecheck": "tsc --noEmit",
+    "vscode:prepublish": "bun run check && bun run build",
     "watch": "node esbuild.js --watch"
   },
   "devDependencies": {
