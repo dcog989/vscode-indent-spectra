@@ -10,6 +10,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.window.onDidChangeActiveTextEditor((editor) => {
             if (editor) {
                 indentSpectra?.clearAppliedState(editor.document.uri);
+                indentSpectra?.checkAndUpdateDirtyDocument(editor.document.uri);
             }
             indentSpectra?.triggerUpdate(undefined, true);
         }),

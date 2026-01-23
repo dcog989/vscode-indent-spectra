@@ -49,4 +49,8 @@ export class LRUCache<K, V> {
     get size(): number {
         return this.cache.size;
     }
+
+    keys(): IterableIterator<K> {
+        return this.cache.keys();
+    }
 }

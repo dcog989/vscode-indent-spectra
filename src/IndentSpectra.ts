@@ -27,7 +27,26 @@ export class IndentSpectra implements vscode.Disposable {
     private ignoredLinesCache = new LRUCache<string, Set<number>>(MAX_CACHED_DOCUMENTS);
     private lastTabSize = new LRUCache<string, number>(MAX_CACHED_DOCUMENTS);
     private lastAppliedState = new LRUCache<string, string>(MAX_CACHED_DOCUMENTS);
+    private dirtyDocuments = new Set<string>();
     private cancellationSource?: vscode.CancellationTokenSource;
+
+    public checkAndUpdateDirtyDocument(uri: vscode.Uri): void {
+        const uriString = uri.toString();
+        if (this.dirtyDocuments.has(uriString)) {
+            // Clear stale data for this document
+            this.lineCache.delete(uriString);
+            this.lastAppliedState.delete(uriString);
+            this.dirtyDocuments.delete(uriString);
+
+            // Trigger update for this document if it's visible
+            const isVisible = vscode.window.visibleTextEditors.some(
+                (editor) => editor.document.uri.toString() === uriString,
+            );
+            if (isVisible) {
+                this.triggerUpdate(undefined, true);
+            }
+        }
+    }
 
     constructor() {
         this.configManager = new ConfigurationManager();
@@ -50,10 +69,20 @@ export class IndentSpectra implements vscode.Disposable {
             this.decoratorCacheKey = newCacheKey;
         }
 
-        this.lineCache.clear();
+        // Mark all cached documents as dirty instead of clearing them immediately
+        for (const uri of this.lineCache.keys()) {
+            this.dirtyDocuments.add(uri);
+        }
+
+        // Clear caches that are no longer valid after config change
         this.ignoredLinesCache.clear();
         this.lastAppliedState.clear();
-        this.triggerUpdate(undefined, true);
+
+        // Only update active editor immediately, others will be updated when focused
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            this.triggerUpdate(undefined, true);
+        }
     }
 
     private computeDecoratorCacheKey(config: IndentSpectraConfig): string {
@@ -391,6 +420,14 @@ export class IndentSpectra implements vscode.Disposable {
         isIgnored: boolean,
     ): LineAnalysis {
         const uri = doc.uri.toString();
+
+        // Check if this document is dirty and clear cache if needed
+        if (this.dirtyDocuments.has(uri)) {
+            this.lineCache.delete(uri);
+            this.lastAppliedState.delete(uri);
+            this.dirtyDocuments.delete(uri);
+        }
+
         const cache = this.lineCache.get(uri);
         if (cache?.[line] && cache[line]?.isIgnored === isIgnored) return cache[line]!;
 
