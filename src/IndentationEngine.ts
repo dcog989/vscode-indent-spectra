@@ -112,11 +112,37 @@ export class IndentationEngine {
         };
     }
 
+    public static updateDocumentLineCount(data: DocumentIndentData, newLineCount: number): void {
+        if (data.lineOffsets.length !== newLineCount + 1) {
+            const newLineOffsets = new Int32Array(newLineCount + 1);
+            const copyLength = Math.min(data.lineOffsets.length, newLineCount + 1);
+            newLineOffsets.set(data.lineOffsets.slice(0, copyLength));
+            data.lineOffsets = newLineOffsets;
+
+            const newMetadata = new Uint8Array(newLineCount);
+            const metadataCopyLength = Math.min(data.metadata.length, newLineCount);
+            newMetadata.set(data.metadata.slice(0, metadataCopyLength));
+            data.metadata = newMetadata;
+        }
+    }
+
     public static setLineData(
         data: DocumentIndentData,
         lineIndex: number,
         analysis: LineAnalysis,
     ): void {
+        if (lineIndex < 0 || lineIndex >= data.metadata.length) {
+            throw new Error(
+                `Line index ${lineIndex} is out of bounds for document with ${data.metadata.length} lines`,
+            );
+        }
+
+        if (lineIndex + 1 >= data.lineOffsets.length) {
+            throw new Error(
+                `Line offset index ${lineIndex + 1} is out of bounds for document with ${data.lineOffsets.length} line offsets`,
+            );
+        }
+
         const offsetStart = data.lineOffsets[lineIndex];
         const blocks = analysis.blocks;
 
@@ -133,6 +159,18 @@ export class IndentationEngine {
     }
 
     public static getLineData(data: DocumentIndentData, lineIndex: number): LineAnalysis {
+        if (lineIndex < 0 || lineIndex >= data.metadata.length) {
+            throw new Error(
+                `Line index ${lineIndex} is out of bounds for document with ${data.metadata.length} lines`,
+            );
+        }
+
+        if (lineIndex + 1 >= data.lineOffsets.length) {
+            throw new Error(
+                `Line offset index ${lineIndex + 1} is out of bounds for document with ${data.lineOffsets.length} line offsets`,
+            );
+        }
+
         const offsetStart = data.lineOffsets[lineIndex];
         const offsetEnd = data.lineOffsets[lineIndex + 1];
         const blockCount = offsetEnd - offsetStart;

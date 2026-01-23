@@ -479,7 +479,11 @@ export class IndentSpectra implements vscode.Disposable {
                 }
                 lastMatchIndex = match.index;
 
-                if (match[0]?.length === 0) regex.lastIndex++;
+                // Safety check: ensure progress even with zero-length matches
+                if (match[0]?.length === 0) {
+                    regex.lastIndex++;
+                    if (regex.lastIndex > text.length) break;
+                }
             }
         }
         return ignoredLines;

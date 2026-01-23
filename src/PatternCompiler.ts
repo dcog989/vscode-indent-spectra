@@ -21,7 +21,17 @@ export class PatternCompiler {
                 flags = match[2];
             }
 
-            const flagSet = new Set(flags.toLowerCase().split(''));
+            // Validate flags against standard set (gimuybs)
+            const validFlags = new Set(['g', 'i', 'm', 'u', 'y', 'b', 's']);
+            const providedFlags = flags.toLowerCase().split('');
+
+            for (const flag of providedFlags) {
+                if (!validFlags.has(flag)) {
+                    return null; // Invalid flag found
+                }
+            }
+
+            const flagSet = new Set(providedFlags);
             flagSet.add('g');
             flagSet.add('m');
 
