@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode';
-import { ColorBrightnessCache } from './colors';
+import { ColorUtils } from './ColorUtils';
 import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
@@ -18,7 +18,6 @@ export class DecorationSuite implements vscode.Disposable {
     private errorDecorator?: vscode.TextEditorDecorationType;
     private mixDecorator?: vscode.TextEditorDecorationType;
     private lastState = new Map<string, DecorationState>();
-    private colorCache = new ColorBrightnessCache();
 
     constructor(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind) {
         this.initialize(config, themeKind);
@@ -29,7 +28,6 @@ export class DecorationSuite implements vscode.Disposable {
         this.activeLevelDecorators = DecorationFactory.createActiveSpectrumDecorations(
             config,
             themeKind,
-            this.colorCache,
         );
         this.errorDecorator = DecorationFactory.createErrorDecoration(config) ?? undefined;
         this.mixDecorator = DecorationFactory.createMixDecoration(config) ?? undefined;
@@ -121,10 +119,6 @@ export class DecorationSuite implements vscode.Disposable {
         return this.decorators.length;
     }
 
-    public getColorCache(): ColorBrightnessCache {
-        return this.colorCache;
-    }
-
     public dispose(): void {
         this.decorators.forEach((d) => d.dispose());
         this.decorators = [];
@@ -135,6 +129,6 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator?.dispose();
         this.mixDecorator = undefined;
         this.lastState.clear();
-        this.colorCache.clear();
+        ColorUtils.clearBrightnessCache();
     }
 }

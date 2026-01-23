@@ -5,6 +5,26 @@ export interface ParsedColor {
     a: number;
 }
 
+export class ColorBrightnessCache {
+    private cache = new Map<string, string>();
+
+    public getBrightened(color: string, brightness: number, isLightTheme: boolean): string {
+        if (brightness === 0) return color;
+
+        const cacheKey = `${color}|${brightness}|${isLightTheme}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached) return cached;
+
+        const result = ColorUtils.brightenColor(color, brightness, isLightTheme);
+        this.cache.set(cacheKey, result);
+        return result;
+    }
+
+    public clear(): void {
+        this.cache.clear();
+    }
+}
+
 export class ColorUtils {
     private static readonly HEX_COLOR_REGEX =
         /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
@@ -389,13 +409,14 @@ export class ColorUtils {
         return `rgba(${r}, ${g}, ${b}, ${a})`;
     }
 
+    private static brightnessCache = new ColorBrightnessCache();
+
     public static brightenColor(color: string, brightness: number, isLightTheme: boolean): string {
-        if (brightness === 0) return color;
+        return this.brightnessCache.getBrightened(color, brightness, isLightTheme);
+    }
 
-        const parsed = this.parseColor(color);
-        if (!parsed) return color;
-
-        return this.applyBrightness(parsed, brightness, isLightTheme);
+    public static clearBrightnessCache(): void {
+        this.brightnessCache.clear();
     }
 
     public static sanitizeColor(color: string): string {

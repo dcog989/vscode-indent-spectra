@@ -1,5 +1,3 @@
-import { ColorUtils } from './ColorUtils';
-
 // Opacity Constants
 const OPACITY_LIGHT = 0.08;
 const OPACITY_COLORBLIND = 0.2;
@@ -45,42 +43,5 @@ export enum ColorThemeKind {
     Dark = 2,
 }
 
-export class ColorBrightnessCache {
-    private cache = new Map<string, string>();
-
-    public getBrightened(color: string, brightness: number, themeKind: ColorThemeKind): string {
-        if (brightness === 0) return color;
-
-        const cacheKey = `${color}|${brightness}|${themeKind}`;
-        const cached = this.cache.get(cacheKey);
-        if (cached) return cached;
-
-        const parsed = ColorUtils.parseColor(color);
-        if (!parsed) return color;
-
-        const result = ColorUtils.applyBrightness(
-            parsed,
-            brightness,
-            themeKind === ColorThemeKind.Light,
-        );
-        this.cache.set(cacheKey, result);
-        return result;
-    }
-
-    public clear(): void {
-        this.cache.clear();
-    }
-}
-
-export function brightenColor(
-    color: string,
-    brightness: number,
-    themeKind: ColorThemeKind,
-): string {
-    if (brightness === 0) return color;
-
-    const parsed = ColorUtils.parseColor(color);
-    if (!parsed) return color;
-
-    return ColorUtils.applyBrightness(parsed, brightness, themeKind === ColorThemeKind.Light);
-}
+// Re-export for backward compatibility
+export type { ColorBrightnessCache } from './ColorUtils';

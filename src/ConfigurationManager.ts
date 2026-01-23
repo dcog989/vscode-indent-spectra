@@ -3,6 +3,11 @@ import { PALETTES, type PaletteKey } from './colors';
 import { ColorUtils } from './ColorUtils';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
 
+export enum IndicatorStyle {
+    Classic = 'classic',
+    Light = 'light',
+}
+
 export interface IndentSpectraConfig {
     updateDelay: number;
     colorPreset: PaletteKey | 'custom';
@@ -13,7 +18,7 @@ export interface IndentSpectraConfig {
     compiledPatterns: CompiledPattern[];
     ignoredLanguages: Set<string>;
     ignoreErrorLanguages: Set<string>;
-    indicatorStyle: 'classic' | 'light';
+    indicatorStyle: IndicatorStyle;
     lightIndicatorWidth: number;
     activeIndentBrightness: number;
 }
@@ -37,10 +42,9 @@ export class ConfigurationManager {
         const rawColors = config.get<string[]>('colors', []);
         const sanitizedColors = this.resolveColors(rawPreset, rawColors);
 
-        let indicatorStyle = config.get<string>('indicatorStyle', 'classic');
-        if (indicatorStyle !== 'classic' && indicatorStyle !== 'light') {
-            indicatorStyle = 'classic';
-        }
+        const rawIndicatorStyle = config.get<string>('indicatorStyle', 'classic');
+        const indicatorStyle =
+            rawIndicatorStyle === 'light' ? IndicatorStyle.Light : IndicatorStyle.Classic;
 
         this.config = {
             updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
@@ -52,7 +56,7 @@ export class ConfigurationManager {
             compiledPatterns: PatternCompiler.compile(config.get<string[]>('ignorePatterns', [])),
             ignoredLanguages: new Set(config.get<string[]>('ignoredLanguages', [])),
             ignoreErrorLanguages: new Set(config.get<string[]>('ignoreErrorLanguages', [])),
-            indicatorStyle: indicatorStyle as 'classic' | 'light',
+            indicatorStyle,
             lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1)),
             activeIndentBrightness: Math.max(
                 0,

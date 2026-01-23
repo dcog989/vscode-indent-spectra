@@ -1,13 +1,11 @@
 import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
-import type { ColorBrightnessCache} from './colors';
-import { ColorThemeKind } from './colors';
-import type { IndentSpectraConfig } from './ConfigurationManager';
+import { IndicatorStyle, type IndentSpectraConfig } from './ConfigurationManager';
 
 export interface DecorationOptions {
     color: string;
     isActive: boolean;
-    indicatorStyle: 'classic' | 'light';
+    indicatorStyle: IndicatorStyle;
     lightIndicatorWidth: number;
     isLightTheme: boolean;
 }
@@ -26,7 +24,7 @@ export class DecorationFactory {
     }
 
     public static createRenderOptions(options: DecorationOptions): vscode.DecorationRenderOptions {
-        if (options.indicatorStyle === 'light') {
+        if (options.indicatorStyle === IndicatorStyle.Light) {
             const width =
                 options.isActive && options.color
                     ? options.lightIndicatorWidth + 1
@@ -48,7 +46,7 @@ export class DecorationFactory {
         }
         hash = (hash << 5) + hash + (options.isActive ? 1 : 0);
         hash = (hash << 5) + hash + options.lightIndicatorWidth;
-        hash = (hash << 5) + hash + (options.indicatorStyle === 'light' ? 1 : 0);
+        hash = (hash << 5) + hash + (options.indicatorStyle === IndicatorStyle.Light ? 1 : 0);
         hash = (hash << 5) + hash + (options.isLightTheme ? 1 : 0);
         return hash >>> 0;
     }
@@ -74,19 +72,19 @@ export class DecorationFactory {
     public static createActiveSpectrumDecorations(
         config: IndentSpectraConfig,
         themeKind: vscode.ColorThemeKind,
-        colorCache?: ColorBrightnessCache,
     ): vscode.TextEditorDecorationType[] {
         if (config.activeIndentBrightness <= 0) {
             return [];
         }
 
         const isLightTheme = themeKind === vscode.ColorThemeKind.Light;
-        const internalThemeKind = isLightTheme ? ColorThemeKind.Light : ColorThemeKind.Dark;
 
         return config.colors.map((color) => {
-            const brightenedColor = colorCache
-                ? colorCache.getBrightened(color, config.activeIndentBrightness, internalThemeKind)
-                : ColorUtils.brightenColor(color, config.activeIndentBrightness, isLightTheme);
+            const brightenedColor = ColorUtils.brightenColor(
+                color,
+                config.activeIndentBrightness,
+                isLightTheme,
+            );
             const options: DecorationOptions = {
                 color: brightenedColor,
                 isActive: true,
