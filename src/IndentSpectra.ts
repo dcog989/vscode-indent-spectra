@@ -459,7 +459,9 @@ export class IndentSpectra implements vscode.Disposable {
 
         let lastYieldTime = performance.now();
         for (const pattern of patterns) {
-            const regex = this.configManager.createRegExp(pattern);
+            // Create a new regex with global flag for finding all matches
+            const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
+            const regex = new RegExp(pattern.source, flags);
             let match: RegExpExecArray | null;
             let matchCount = 0;
             while ((match = regex.exec(text)) !== null) {
@@ -472,10 +474,9 @@ export class IndentSpectra implements vscode.Disposable {
                 const endLine = getLineIndex(match.index + (match[0]?.length ?? 0));
                 for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
 
-                // Always advance lastIndex to prevent infinite loops with zero-length matches
+                // Handle zero-length matches to prevent infinite loops
                 if (match[0]?.length === 0) {
                     regex.lastIndex++;
-                    if (regex.lastIndex > text.length) break;
                 }
             }
         }

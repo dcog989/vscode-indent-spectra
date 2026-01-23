@@ -4,13 +4,16 @@ export interface CompiledPattern {
 }
 
 export class PatternCompiler {
-    public static compile(patterns: string[]): CompiledPattern[] {
+    public static compile(patterns: string[], addGlobal: boolean = false): CompiledPattern[] {
         return patterns
-            .map((pattern) => this.compilePattern(pattern))
+            .map((pattern) => this.compilePattern(pattern, addGlobal))
             .filter((result): result is CompiledPattern => result !== null);
     }
 
-    private static compilePattern(pattern: string): CompiledPattern | null {
+    private static compilePattern(
+        pattern: string,
+        addGlobal: boolean = false,
+    ): CompiledPattern | null {
         try {
             let source = pattern;
             let flags = '';
@@ -32,7 +35,9 @@ export class PatternCompiler {
             }
 
             const flagSet = new Set(providedFlags);
-            flagSet.add('g');
+            if (addGlobal) {
+                flagSet.add('g');
+            }
             flagSet.add('m');
 
             return {
