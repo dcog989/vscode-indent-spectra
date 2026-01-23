@@ -72,7 +72,7 @@ npm-debug.log*
 obj
 out
 pids
-repomix.config.json
+repomix.*.json
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 target
 Thumbs.db
