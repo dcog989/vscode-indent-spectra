@@ -29,6 +29,11 @@ export class IndentSpectra implements vscode.Disposable {
     private lastAppliedState = new LRUCache<string, string>(MAX_CACHED_DOCUMENTS);
     private dirtyDocuments = new Set<string>();
     private cancellationSource?: vscode.CancellationTokenSource;
+    private eventSequence = 0;
+    private pendingEvents = new Map<
+        string,
+        { sequence: number; event: vscode.TextDocumentChangeEvent }
+    >();
 
     public checkAndUpdateDirtyDocument(uri: vscode.Uri): void {
         const uriString = uri.toString();
@@ -154,7 +159,7 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         if (event) {
-            this.applyIncrementalChangeToCache(event);
+            this.applyIncrementalChangeToCache(event, ++this.eventSequence);
         }
 
         const run = async (): Promise<void> => {
@@ -170,10 +175,22 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
+    private applyIncrementalChangeToCache(
+        event: vscode.TextDocumentChangeEvent,
+        sequence: number,
+    ): void {
         const uri = event.document.uri.toString();
+
+        // Store event with sequence number to ensure proper ordering
+        this.pendingEvents.set(uri, { sequence, event });
+
+        // Process events in order, skipping outdated ones
+        const pending = this.pendingEvents.get(uri);
+        if (!pending?.sequence || pending.sequence !== sequence) return;
+
         this.ignoredLinesCache.delete(uri);
         this.lastAppliedState.delete(uri);
+        this.pendingEvents.delete(uri);
 
         const cache = this.lineCache.get(uri);
         if (!cache) return;
@@ -477,8 +494,9 @@ export class IndentSpectra implements vscode.Disposable {
 
         const text = doc.getText();
         const lineStarts: number[] = [0];
-        for (let i = 0; i < text.length; i++) {
-            if (text[i] === '\n') lineStarts.push(i + 1);
+        for (let i = 0; i < doc.lineCount; i++) {
+            const lineOffset = doc.lineAt(i).range.start;
+            lineStarts.push(doc.offsetAt(lineOffset));
         }
 
         const getLineIndex = (offset: number): number => {
