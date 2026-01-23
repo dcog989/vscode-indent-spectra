@@ -98,11 +98,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
     // INDENTATION ERROR DETECTION
     // ============================================================================
 
-    test('Should detect indentation errors (unaligned to tabSize)', async () => {
+    test('Should not flag pure space indentation as errors', async () => {
         indentSpectra = new IndentSpectra();
 
-        // Assuming tabSize = 4, this indent of 3 spaces is an error
-        const content = 'root\n   unaligned';
+        // Pure space indentation should never be flagged as error, even if unaligned to tabSize
+        const content = 'root\n   unaligned\n  also_aligned';
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
@@ -111,7 +111,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await vscode.window.showTextDocument(doc);
 
         indentSpectra.triggerUpdate();
-        assert.ok(true, 'Error detection should not crash');
+        assert.ok(true, 'Pure space indentation should not be flagged as errors');
     });
 
     test('Should not flag errors for multi-line comments in ignored languages', async () => {
@@ -568,6 +568,46 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         // This should not crash even with no active editor
         indentSpectra.triggerUpdate();
         assert.ok(true, 'TriggerUpdate with no active editor should not crash');
+    });
+
+    test('Should create blocks for 2-space indentation', async () => {
+        const { IndentationEngine } = await import('../../IndentationEngine');
+
+        // Test 2-space indentation creates blocks correctly
+        const result = IndentationEngine.analyzeLine('  "key": "value"', 4, false, false);
+
+        assert.ok(result.blocks.length > 0, '2-space indentation should create blocks');
+        assert.strictEqual(result.isError, false, '2-space indentation should not be an error');
+        assert.strictEqual(result.isMixed, false, '2-space indentation should not be mixed');
+        assert.strictEqual(result.visualWidth, 2, 'Visual width should be 2');
+    });
+
+    test('Should create blocks for 4-space indentation', async () => {
+        const { IndentationEngine } = await import('../../IndentationEngine');
+
+        // Test 4-space indentation creates blocks correctly
+        const result = IndentationEngine.analyzeLine('    "key": "value"', 4, false, false);
+
+        assert.ok(result.blocks.length > 0, '4-space indentation should create blocks');
+        assert.strictEqual(result.isError, false, '4-space indentation should not be an error');
+        assert.strictEqual(result.isMixed, false, '4-space indentation should not be mixed');
+        assert.strictEqual(result.visualWidth, 4, 'Visual width should be 4');
+    });
+
+    test('Should still flag tabs with incorrect alignment as errors', async () => {
+        indentSpectra = new IndentSpectra();
+
+        // Tabs that don't align to tabSize boundaries should be flagged as errors
+        const content = 'root\n\tcorrect\n\t  incorrect_mixed\n\t\tcorrect';
+
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'javascript',
+        });
+        await vscode.window.showTextDocument(doc);
+
+        indentSpectra.triggerUpdate();
+        assert.ok(true, 'Tab alignment errors should still be detected');
     });
 
     // ============================================================================

@@ -82,18 +82,23 @@ export class IndentationEngine {
             if (charCode === TAB_CHAR_CODE) {
                 hasTab = true;
                 visualWidth += tabSize - (visualWidth % tabSize);
+                // Create blocks at tab boundaries for tab-based indentation
                 if (visualWidth % tabSize === 0) blocks.push(i + 1);
             } else if (charCode === SPACE_CHAR_CODE) {
                 hasSpace = true;
                 visualWidth++;
-                if (visualWidth % tabSize === 0) blocks.push(i + 1);
+                // For pure space indentation, create blocks at 2-space intervals
+                // This ensures common indentation patterns (2-space, 4-space) get colorized
+                if (visualWidth % 2 === 0) blocks.push(i + 1);
             } else {
                 break;
             }
         }
 
         const isMixed = hasTab && hasSpace;
-        const isError = visualWidth > 0 && visualWidth % tabSize !== 0 && !skipErrors;
+        // Only flag as error if tabs are used and indentation doesn't align to tab size
+        // Pure space indentation should never be flagged as an error
+        const isError = hasTab && visualWidth > 0 && visualWidth % tabSize !== 0 && !skipErrors;
 
         if (isError && visualWidth > 0) {
             blocks.push(i);
