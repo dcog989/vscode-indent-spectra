@@ -30,6 +30,7 @@ export class DecorationManager implements vscode.Disposable {
 
         // If theme or config changed, clear existing suites
         if (configKey !== this.currentConfigKey || themeKind !== this.currentThemeKind) {
+            this.currentSuite = undefined;
             this.disposeAllSuites();
             this.currentConfigKey = configKey;
             this.currentThemeKind = themeKind;
