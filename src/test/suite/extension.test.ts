@@ -31,7 +31,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: 'function test() {\n\treturn true;\n}',
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -54,7 +54,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         const editor = await vscode.window.showTextDocument(doc);
 
@@ -71,7 +71,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -86,7 +86,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -106,7 +106,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -122,7 +122,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'markdown'
+            language: 'markdown',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -206,9 +206,9 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
                 'rgba(255, 0, 0, 0.1)',
                 'rgba(0, 255, 0, 0.1)',
                 'rgba(0, 0, 255, 0.1)',
-                'rgba(255, 255, 0, 0.1)'
+                'rgba(255, 255, 0, 0.1)',
             ],
-            vscode.ConfigurationTarget.Global
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -226,7 +226,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'colors',
             ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'],
-            vscode.ConfigurationTarget.Global
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -244,7 +244,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'colors',
             ['invalid_color_xyz', 'also_bad_123'],
-            vscode.ConfigurationTarget.Global
+            vscode.ConfigurationTarget.Global,
         );
 
         // Should not crash; should fallback to universal palette
@@ -320,7 +320,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra = new IndentSpectra();
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        await config.update('errorColor', 'rgba(255, 0, 0, 0.7)', vscode.ConfigurationTarget.Global);
+        await config.update(
+            'errorColor',
+            'rgba(255, 0, 0, 0.7)',
+            vscode.ConfigurationTarget.Global,
+        );
 
         indentSpectra.reloadConfig();
 
@@ -334,7 +338,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra = new IndentSpectra();
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        await config.update('mixColor', 'rgba(255, 255, 0, 0.8)', vscode.ConfigurationTarget.Global);
+        await config.update(
+            'mixColor',
+            'rgba(255, 255, 0, 0.8)',
+            vscode.ConfigurationTarget.Global,
+        );
 
         indentSpectra.reloadConfig();
 
@@ -355,7 +363,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignorePatterns',
             ['/[ \t]*[*]/g', '/[ \t]+[/]{2}/g'],
-            vscode.ConfigurationTarget.Global
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -364,7 +372,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const content = '/*\n *  indented comment\n */\ncode';
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -385,7 +393,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const content = 'code\n  indented';
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -399,7 +407,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('ignoreErrorLanguages', ['markdown', 'plaintext'], vscode.ConfigurationTarget.Global);
+        await config.update(
+            'ignoreErrorLanguages',
+            ['markdown', 'plaintext'],
+            vscode.ConfigurationTarget.Global,
+        );
 
         indentSpectra.reloadConfig();
 
@@ -407,7 +419,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const content = '# Header\n   bad indent';
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'markdown'
+            language: 'markdown',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -431,7 +443,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: 'some\n  text',
-            language: 'plaintext'
+            language: 'plaintext',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -446,7 +458,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: 'function test() {\n  const x = 1;\n}',
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -470,7 +482,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -479,7 +491,10 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const endTime = Date.now();
 
         const elapsed = endTime - startTime;
-        assert.ok(elapsed < 5000, `Large file processing should complete in < 5 seconds, took ${elapsed}ms`);
+        assert.ok(
+            elapsed < 5000,
+            `Large file processing should complete in < 5 seconds, took ${elapsed}ms`,
+        );
     });
 
     test('Should handle deeply nested indentation', async () => {
@@ -493,7 +508,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -510,7 +525,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: 'code\n  indented',
-            language: 'javascript'
+            language: 'javascript',
         });
         const editor = await vscode.window.showTextDocument(doc);
 
@@ -564,13 +579,17 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
 
         // Add a regex for multi-line C-style comments
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('ignorePatterns', ['/\\/\\*[\\s\\S]*?\\*\\//g'], vscode.ConfigurationTarget.Global);
+        await config.update(
+            'ignorePatterns',
+            ['/\\/\\*[\\s\\S]*?\\*\\//g'],
+            vscode.ConfigurationTarget.Global,
+        );
         indentSpectra.reloadConfig();
 
         const content = '/*\n\tignored line\n*/\n\tnot ignored';
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'javascript'
+            language: 'javascript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -581,7 +600,6 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         // Cleanup
         await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Global);
     });
-
 
     // ============================================================================
     // REGEX

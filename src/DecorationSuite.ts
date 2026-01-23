@@ -14,9 +14,7 @@ export class DecorationSuite implements vscode.Disposable {
 
     private initialize(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind): void {
         const colorThemeKind =
-            themeKind === vscode.ColorThemeKind.Light
-                ? ColorThemeKind.Light
-                : ColorThemeKind.Dark;
+            themeKind === vscode.ColorThemeKind.Light ? ColorThemeKind.Light : ColorThemeKind.Dark;
 
         const createOptions = (
             color: string,

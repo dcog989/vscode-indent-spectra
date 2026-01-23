@@ -76,10 +76,7 @@ export class IndentationEngine {
         data.metadata[lineIndex] = flags;
     }
 
-    public static getLineData(
-        data: DocumentIndentData,
-        lineIndex: number,
-    ): LineAnalysis {
+    public static getLineData(data: DocumentIndentData, lineIndex: number): LineAnalysis {
         const offsetStart = data.lineOffsets[lineIndex];
         const offsetEnd = data.lineOffsets[lineIndex + 1];
         const blockCount = offsetEnd - offsetStart;

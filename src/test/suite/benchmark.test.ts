@@ -25,7 +25,7 @@ suite('Performance Benchmark Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'typescript'
+            language: 'typescript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -37,7 +37,9 @@ suite('Performance Benchmark Suite', () => {
         const end = performance.now();
         const duration = end - start;
 
-        console.log(`[Benchmark Result] Deep Indentation Analysis (${lineCount} lines, depth ${depth}): ${duration.toFixed(2)}ms`);
+        console.log(
+            `[Benchmark Result] Deep Indentation Analysis (${lineCount} lines, depth ${depth}): ${duration.toFixed(2)}ms`,
+        );
         assert.ok(duration < 500, `Performance regression: Analysis took ${duration.toFixed(2)}ms`);
     });
 
@@ -49,7 +51,7 @@ suite('Performance Benchmark Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'typescript'
+            language: 'typescript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -58,7 +60,9 @@ suite('Performance Benchmark Suite', () => {
         const end = performance.now();
         const duration = end - start;
 
-        console.log(`[Benchmark Result] Ignore Pattern Analysis (${lineCount} blocks): ${duration.toFixed(2)}ms`);
+        console.log(
+            `[Benchmark Result] Ignore Pattern Analysis (${lineCount} blocks): ${duration.toFixed(2)}ms`,
+        );
         assert.ok(duration < 300, `Ignore analysis too slow: ${duration.toFixed(2)}ms`);
     });
 
@@ -70,7 +74,7 @@ suite('Performance Benchmark Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'typescript'
+            language: 'typescript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -79,7 +83,9 @@ suite('Performance Benchmark Suite', () => {
         const end = performance.now();
         const duration = end - start;
 
-        console.log(`[Benchmark Result] Massive File Analysis (${lineCount} lines): ${duration.toFixed(2)}ms`);
+        console.log(
+            `[Benchmark Result] Massive File Analysis (${lineCount} lines): ${duration.toFixed(2)}ms`,
+        );
         assert.ok(duration < 2000, `Massive file analysis too slow: ${duration.toFixed(2)}ms`);
     });
 
@@ -91,7 +97,7 @@ suite('Performance Benchmark Suite', () => {
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
-            language: 'typescript'
+            language: 'typescript',
         });
         await vscode.window.showTextDocument(doc);
 
@@ -107,7 +113,9 @@ suite('Performance Benchmark Suite', () => {
         const max = Math.max(...durations);
         const jitter = max - avg;
 
-        console.log(`[Benchmark Result] Jitter Test over ${iterations} iterations: Avg: ${avg.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Jitter: ${jitter.toFixed(2)}ms`);
+        console.log(
+            `[Benchmark Result] Jitter Test over ${iterations} iterations: Avg: ${avg.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Jitter: ${jitter.toFixed(2)}ms`,
+        );
         assert.ok(jitter < 100, `High allocation jitter detected: ${jitter.toFixed(2)}ms`);
     });
 });
