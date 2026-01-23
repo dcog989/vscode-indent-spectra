@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigurationManager } from './ConfigurationManager';
-import { LRUCache } from './LRUCache';
-import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
 import { DecorationSuite } from './DecorationSuite';
+import { IndentationEngine, type LineAnalysis } from './IndentationEngine';
+import { LRUCache } from './LRUCache';
 
 const CHUNK_SIZE_LINES = 1000;
 const VISIBLE_LINE_BUFFER = 50;
@@ -46,10 +46,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         if (newCacheKey !== this.decoratorCacheKey) {
             this.decorationSuite?.dispose();
-            this.decorationSuite = new DecorationSuite(
-                config,
-                vscode.window.activeColorTheme.kind,
-            );
+            this.decorationSuite = new DecorationSuite(config, vscode.window.activeColorTheme.kind);
             this.decoratorCacheKey = newCacheKey;
         }
 
@@ -85,10 +82,7 @@ export class IndentSpectra implements vscode.Disposable {
 
         if (config.activeIndentBrightness > 0) {
             this.decorationSuite?.dispose();
-            this.decorationSuite = new DecorationSuite(
-                config,
-                vscode.window.activeColorTheme.kind,
-            );
+            this.decorationSuite = new DecorationSuite(config, vscode.window.activeColorTheme.kind);
             this.lastAppliedState.clear();
             this.triggerUpdate(undefined, true);
         }
@@ -476,13 +470,13 @@ export class IndentSpectra implements vscode.Disposable {
                 const startLine = getLineIndex(match.index);
                 const endLine = getLineIndex(match.index + (match[0]?.length ?? 0));
                 for (let i = startLine; i <= endLine; i++) ignoredLines.add(i);
-                
+
                 if (match.index === lastMatchIndex) {
                     regex.lastIndex++;
                     if (regex.lastIndex > text.length) break;
                 }
                 lastMatchIndex = match.index;
-                
+
                 if (match[0]?.length === 0) regex.lastIndex++;
             }
         }
