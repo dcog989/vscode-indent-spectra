@@ -5,6 +5,11 @@ const HEX_COLOR_REGEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const RGBA_COLOR_REGEX =
     /^rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(?:,\s*(?:0|1|0?\.\d+|\d{1,3}%?)\s*)?\)$/i;
 
+interface CompiledPattern {
+    source: string;
+    flags: string;
+}
+
 export interface IndentSpectraConfig {
     updateDelay: number;
     colorPreset: PaletteKey | 'custom';
@@ -12,7 +17,7 @@ export interface IndentSpectraConfig {
     errorColor: string;
     mixColor: string;
     ignorePatterns: string[];
-    compiledPatterns: RegExp[];
+    compiledPatterns: CompiledPattern[];
     ignoredLanguages: Set<string>;
     ignoreErrorLanguages: Set<string>;
     indicatorStyle: 'classic' | 'light';
@@ -87,7 +92,7 @@ export class ConfigurationManager {
         );
     }
 
-    private compilePatterns(patterns: string[]): RegExp[] {
+    private compilePatterns(patterns: string[]): CompiledPattern[] {
         return patterns
             .map((p) => {
                 try {
@@ -101,12 +106,16 @@ export class ConfigurationManager {
                     const flagSet = new Set(flags.toLowerCase().split(''));
                     flagSet.add('g');
                     flagSet.add('m');
-                    return new RegExp(source, Array.from(flagSet).join(''));
+                    return { source, flags: Array.from(flagSet).join('') };
                 } catch {
                     return null;
                 }
             })
-            .filter((r): r is RegExp => r !== null);
+            .filter((r): r is CompiledPattern => r !== null);
+    }
+
+    public createRegExp(pattern: CompiledPattern): RegExp {
+        return new RegExp(pattern.source, pattern.flags);
     }
 
     public dispose(): void {

@@ -456,8 +456,8 @@ export class IndentSpectra implements vscode.Disposable {
         };
 
         let lastYieldTime = performance.now();
-        for (const regex of patterns) {
-            regex.lastIndex = 0;
+        for (const pattern of patterns) {
+            const regex = this.configManager.createRegExp(pattern);
             let match: RegExpExecArray | null;
             let matchCount = 0;
             let lastMatchIndex = -1;

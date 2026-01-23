@@ -7,7 +7,7 @@ export interface LineAnalysis {
 }
 
 export interface DocumentIndentData {
-    blockData: Int32Array;
+    blockData: number[];
     lineOffsets: Int32Array;
     metadata: Uint8Array;
 }
@@ -49,7 +49,7 @@ export class IndentationEngine {
 
     public static createDocumentData(lineCount: number): DocumentIndentData {
         return {
-            blockData: new Int32Array(lineCount * 16),
+            blockData: [],
             lineOffsets: new Int32Array(lineCount + 1),
             metadata: new Uint8Array(lineCount),
         };
@@ -63,11 +63,11 @@ export class IndentationEngine {
         const offsetStart = data.lineOffsets[lineIndex];
         const blocks = analysis.blocks;
 
-        for (let i = 0; i < blocks.length && i < 16; i++) {
-            data.blockData[offsetStart + i] = blocks[i];
+        for (let i = 0; i < blocks.length; i++) {
+            data.blockData.push(blocks[i]);
         }
 
-        data.lineOffsets[lineIndex + 1] = offsetStart + Math.min(blocks.length, 16);
+        data.lineOffsets[lineIndex + 1] = offsetStart + blocks.length;
 
         let flags = 0;
         if (analysis.isMixed) flags |= METADATA_MIXED;
