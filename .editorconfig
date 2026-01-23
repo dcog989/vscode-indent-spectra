@@ -12,20 +12,15 @@ charset = utf-8
 
 # Matches multiple files with brace expansion notation
 # Set default charset
-[*.{js,ts,svelte,json,css,md}]
+[*.{js,rs,ts,cs,svelte,css,md}]
 indent_style = space
 indent_size = 4
 
-# YAML files
-[*.{yml,yaml}]
+# config files
+[*.{yml,yaml,json,toml}]
 indent_style = space
 indent_size = 2
 
 # Markdown files
 [*.md]
 trim_trailing_whitespace = false
-
-# Package.json
-[package.json]
-indent_style = space
-indent_size = 2
