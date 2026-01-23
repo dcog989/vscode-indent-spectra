@@ -37,7 +37,10 @@
     "check-types": "tsc --noEmit",
     "clean": "node -e \"['dist', 'out', '.vscode-test'].forEach(d => require('fs').rmSync(d, {recursive:true, force:true}))\"",
     "compile": "tsc -p ./",
+    "format": "prettier --write src/**/*.{ts,js,json}",
+    "format:check": "prettier --check src/**/*.{ts,js,json}",
     "lint": "eslint src",
+    "lint-staged": "eslint src --fix && prettier --write src/**/*.{ts,js,json}",
     "test": "bun run bundle && bun run compile && node ./out/test/runTest.js",
     "vscode:prepublish": "bun run bundle",
     "watch": "tsc -watch -p ./"

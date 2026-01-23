@@ -1,6 +1,7 @@
 **/.vitepress/cache
 **/.vitepress/dist
 **/.vscode-test/
+*.bak
 *.dll
 *.exe
 *.lcov
@@ -59,7 +60,6 @@ __pycache__
 bin
 bower_components
 build
-build/Release
 Cargo.lock
 coverage
 dist
