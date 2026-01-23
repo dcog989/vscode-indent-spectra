@@ -3,10 +3,10 @@ import { ColorBrightnessCache, ColorThemeKind } from './colors';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 interface DecorationState {
-    spectra: string[];
-    activeLevelSpectra: string[];
-    errors: string;
-    mixed: string;
+    spectraHashes: number[];
+    activeLevelSpectraHashes: number[];
+    errorsHash: number;
+    mixedHash: number;
 }
 
 export class DecorationSuite implements vscode.Disposable {
@@ -73,11 +73,17 @@ export class DecorationSuite implements vscode.Disposable {
         }
     }
 
-    private serializeRanges(ranges: vscode.Range[]): string {
-        if (ranges.length === 0) return '';
-        return ranges
-            .map((r) => `${r.start.line},${r.start.character},${r.end.line},${r.end.character}`)
-            .join(';');
+    private hashRanges(ranges: vscode.Range[]): number {
+        if (ranges.length === 0) return 0;
+
+        let hash = 5381;
+        for (const range of ranges) {
+            hash = (hash << 5) + hash + range.start.line;
+            hash = (hash << 5) + hash + range.start.character;
+            hash = (hash << 5) + hash + range.end.line;
+            hash = (hash << 5) + hash + range.end.character;
+        }
+        return hash >>> 0; // Convert to unsigned 32-bit
     }
 
     public apply(
@@ -91,29 +97,29 @@ export class DecorationSuite implements vscode.Disposable {
         const lastState = this.lastState.get(editorKey);
 
         const newState: DecorationState = {
-            spectra: spectra.map(this.serializeRanges),
-            activeLevelSpectra: activeLevelSpectra.map(this.serializeRanges),
-            errors: this.serializeRanges(errors),
-            mixed: this.serializeRanges(mixed),
+            spectraHashes: spectra.map(this.hashRanges.bind(this)),
+            activeLevelSpectraHashes: activeLevelSpectra.map(this.hashRanges.bind(this)),
+            errorsHash: this.hashRanges(errors),
+            mixedHash: this.hashRanges(mixed),
         };
 
         for (let i = 0; i < this.decorators.length; i++) {
-            if (lastState?.spectra[i] !== newState.spectra[i]) {
+            if (lastState?.spectraHashes[i] !== newState.spectraHashes[i]) {
                 editor.setDecorations(this.decorators[i], spectra[i]);
             }
         }
 
         for (let i = 0; i < this.activeLevelDecorators.length; i++) {
-            if (lastState?.activeLevelSpectra[i] !== newState.activeLevelSpectra[i]) {
+            if (lastState?.activeLevelSpectraHashes[i] !== newState.activeLevelSpectraHashes[i]) {
                 editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
             }
         }
 
-        if (this.errorDecorator && lastState?.errors !== newState.errors) {
+        if (this.errorDecorator && lastState?.errorsHash !== newState.errorsHash) {
             editor.setDecorations(this.errorDecorator, errors);
         }
 
-        if (this.mixDecorator && lastState?.mixed !== newState.mixed) {
+        if (this.mixDecorator && lastState?.mixedHash !== newState.mixedHash) {
             editor.setDecorations(this.mixDecorator, mixed);
         }
 

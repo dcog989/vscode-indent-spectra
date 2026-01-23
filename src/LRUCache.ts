@@ -22,9 +22,7 @@ export class LRUCache<K, V> {
         } else if (this.cache.size >= this.maxSize) {
             const firstKey = this.cache.keys().next().value as K;
             if (firstKey !== undefined) {
-                const evictedValue = this.cache.get(firstKey);
                 this.cache.delete(firstKey);
-                this.clearValue(evictedValue);
             }
         }
         this.cache.set(key, value);
@@ -35,34 +33,14 @@ export class LRUCache<K, V> {
     }
 
     delete(key: K): boolean {
-        const value = this.cache.get(key);
-        const deleted = this.cache.delete(key);
-        if (deleted) {
-            this.clearValue(value);
-        }
-        return deleted;
+        return this.cache.delete(key);
     }
 
     clear(): void {
-        for (const value of this.cache.values()) {
-            this.clearValue(value);
-        }
         this.cache.clear();
     }
 
     get size(): number {
         return this.cache.size;
-    }
-
-    private clearValue(value: V | undefined): void {
-        if (value === undefined || value === null) return;
-
-        if (Array.isArray(value)) {
-            value.length = 0;
-        } else if (value instanceof Set) {
-            value.clear();
-        } else if (value instanceof Map) {
-            value.clear();
-        }
     }
 }

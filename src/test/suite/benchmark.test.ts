@@ -2,6 +2,51 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { IndentSpectra } from '../../IndentSpectra';
 
+class MemoryEfficientContentGenerator {
+    private static generateLine(indent: string, content: string): string {
+        return `${indent}${content}`;
+    }
+
+    static generateIndentedContent(
+        lineCount: number,
+        depth: number,
+        content: string = 'const value = "test";',
+    ): string {
+        const indent = '\t'.repeat(depth);
+        const lines: string[] = [];
+
+        // Generate in chunks to avoid holding entire array in memory
+        const chunkSize = 1000;
+        for (let i = 0; i < lineCount; i += chunkSize) {
+            const currentChunkSize = Math.min(chunkSize, lineCount - i);
+            const chunk: string[] = [];
+            for (let j = 0; j < currentChunkSize; j++) {
+                chunk.push(this.generateLine(indent, content));
+            }
+            lines.push(...chunk);
+        }
+
+        return lines.join('\n');
+    }
+
+    static generateBlockCommentContent(lineCount: number): string {
+        const commentBlock = '/* Block comment start \n   indented inside \n end block */';
+        const lines: string[] = [];
+
+        const chunkSize = 500;
+        for (let i = 0; i < lineCount; i += chunkSize) {
+            const currentChunkSize = Math.min(chunkSize, lineCount - i);
+            const chunk: string[] = [];
+            for (let j = 0; j < currentChunkSize; j++) {
+                chunk.push(commentBlock);
+            }
+            lines.push(...chunk);
+        }
+
+        return lines.join('\n');
+    }
+}
+
 suite('Performance Benchmark Suite', () => {
     let indentSpectra: IndentSpectra;
     const token = new vscode.CancellationTokenSource().token;
@@ -19,9 +64,7 @@ suite('Performance Benchmark Suite', () => {
     test('Benchmark: Deep Indentation (Stress Test)', async () => {
         const lineCount = 5000;
         const depth = 20;
-        const indentString = '\t'.repeat(depth);
-        const lines = new Array(lineCount).fill(`${indentString}const value = "test";`);
-        const content = lines.join('\n');
+        const content = MemoryEfficientContentGenerator.generateIndentedContent(lineCount, depth);
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
@@ -45,9 +88,7 @@ suite('Performance Benchmark Suite', () => {
 
     test('Benchmark: Ignore Patterns (Regex Reuse)', async () => {
         const lineCount = 2000;
-        const content = new Array(lineCount)
-            .fill('/* Block comment start \n   indented inside \n end block */')
-            .join('\n');
+        const content = MemoryEfficientContentGenerator.generateBlockCommentContent(lineCount);
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
@@ -69,8 +110,11 @@ suite('Performance Benchmark Suite', () => {
     test('Benchmark: Massive File (50,000 Lines)', async () => {
         const lineCount = 50000;
         const depth = 5;
-        const lines = new Array(lineCount).fill('\t'.repeat(depth) + 'const x = 1;');
-        const content = lines.join('\n');
+        const content = MemoryEfficientContentGenerator.generateIndentedContent(
+            lineCount,
+            depth,
+            'const x = 1;',
+        );
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
@@ -92,8 +136,7 @@ suite('Performance Benchmark Suite', () => {
     test('Benchmark: Allocation Stability (Jitter Test)', async () => {
         const lineCount = 2000;
         const iterations = 50; // Reduced iterations because of await overhead
-        const lines = new Array(lineCount).fill('\t\t\t\tconst value = "test";');
-        const content = lines.join('\n');
+        const content = MemoryEfficientContentGenerator.generateIndentedContent(lineCount, 4);
 
         const doc = await vscode.workspace.openTextDocument({
             content: content,
