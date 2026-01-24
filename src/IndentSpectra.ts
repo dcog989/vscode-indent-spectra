@@ -281,9 +281,13 @@ export class IndentSpectra implements vscode.Disposable {
 
         // 3. Determine Active Scope
         const activeLineNum = config.activeIndentBrightness > 0 ? editor.selection.active.line : -1;
+        const activeChar =
+            config.activeIndentBrightness > 0 ? editor.selection.active.character : 0;
+
         const scope = ScopeFinder.findScope(
             doc,
             activeLineNum,
+            activeChar,
             lineCount,
             ignoredLines,
             analyzeLine,
