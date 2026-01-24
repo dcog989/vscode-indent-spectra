@@ -4,21 +4,33 @@
     {
       "type": "npm",
       "script": "watch",
-      "problemMatcher": "$tsc-watch",
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": ".*"
+        }
+      },
       "isBackground": true,
       "presentation": {
-        "reveal": "never"
+        "reveal": "never",
+        "group": "builders"
       },
       "group": {
         "kind": "build",
         "isDefault": true
-      }
+      },
+      "label": "npm: watch"
     },
     {
       "type": "npm",
       "script": "compile",
       "problemMatcher": "$tsc",
       "group": "build",
+      "label": "npm: compile",
       "presentation": {
         "reveal": "never"
       }
