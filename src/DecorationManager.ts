@@ -1,4 +1,4 @@
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
@@ -97,6 +97,17 @@ export class DecorationSuite implements vscode.Disposable {
     private mixDecorator?: vscode.TextEditorDecorationType;
     private lastState = new Map<string, DecorationState>();
 
+    // Persistent decoration state for entire document
+    private documentDecorations = new Map<
+        string,
+        {
+            spectra: vscode.Range[][];
+            activeLevelSpectra: vscode.Range[][];
+            errors: vscode.Range[];
+            mixed: vscode.Range[];
+        }
+    >();
+
     constructor(config: IndentSpectraConfig, themeKind: vscode.ColorThemeKind) {
         this.initialize(config, themeKind);
     }
@@ -141,17 +152,73 @@ export class DecorationSuite implements vscode.Disposable {
         activeLevelSpectra: vscode.Range[][],
         errors: vscode.Range[],
         mixed: vscode.Range[],
+        processedLines?: Set<number>,
         forceUpdate: boolean = false,
     ): void {
         const editorKey = editor.document.uri.toString();
         const lastState = this.lastState.get(editorKey);
         const currentVersion = editor.document.version;
 
+        // Get or initialize persistent decoration state
+        let docDecorations = this.documentDecorations.get(editorKey);
+        if (!docDecorations || forceUpdate) {
+            docDecorations = {
+                spectra: Array.from({ length: this.decorators.length }, () => []),
+                activeLevelSpectra: Array.from(
+                    { length: this.activeLevelDecorators.length },
+                    () => [],
+                ),
+                errors: [],
+                mixed: [],
+            };
+            this.documentDecorations.set(editorKey, docDecorations);
+        }
+
+        // If we have processed lines, merge decorations intelligently
+        if (processedLines && processedLines.size > 0) {
+            // Remove decorations for processed lines from existing state
+            for (let i = 0; i < docDecorations.spectra.length; i++) {
+                docDecorations.spectra[i] = docDecorations.spectra[i].filter(
+                    (range) => !processedLines.has(range.start.line),
+                );
+            }
+            for (let i = 0; i < docDecorations.activeLevelSpectra.length; i++) {
+                docDecorations.activeLevelSpectra[i] =
+                    docDecorations.activeLevelSpectra[i].filter(
+                        (range) => !processedLines.has(range.start.line),
+                    );
+            }
+            docDecorations.errors = docDecorations.errors.filter(
+                (range) => !processedLines.has(range.start.line),
+            );
+            docDecorations.mixed = docDecorations.mixed.filter(
+                (range) => !processedLines.has(range.start.line),
+            );
+
+            // Add new decorations for processed lines
+            for (let i = 0; i < spectra.length; i++) {
+                docDecorations.spectra[i].push(...spectra[i]);
+            }
+            for (let i = 0; i < activeLevelSpectra.length; i++) {
+                docDecorations.activeLevelSpectra[i].push(...activeLevelSpectra[i]);
+            }
+            docDecorations.errors.push(...errors);
+            docDecorations.mixed.push(...mixed);
+        } else {
+            // Full replacement
+            docDecorations.spectra = spectra;
+            docDecorations.activeLevelSpectra = activeLevelSpectra;
+            docDecorations.errors = errors;
+            docDecorations.mixed = mixed;
+        }
+
         const newState: DecorationState = {
-            spectraHashes: spectra.map(this.hashRanges.bind(this)),
-            activeLevelSpectraHashes: activeLevelSpectra.map(this.hashRanges.bind(this)),
-            errorsHash: this.hashRanges(errors),
-            mixedHash: this.hashRanges(mixed),
+            spectraHashes: docDecorations.spectra.map(this.hashRanges.bind(this)),
+            activeLevelSpectraHashes: docDecorations.activeLevelSpectra.map(
+                this.hashRanges.bind(this),
+            ),
+            errorsHash: this.hashRanges(docDecorations.errors),
+            mixedHash: this.hashRanges(docDecorations.mixed),
             documentVersion: currentVersion,
             isDirty: forceUpdate || lastState?.documentVersion !== currentVersion,
         };
@@ -160,38 +227,45 @@ export class DecorationSuite implements vscode.Disposable {
         const shouldUpdateAll = newState.isDirty || !lastState;
 
         if (shouldUpdateAll) {
-            // Update all decorations
+            // Update all decorations with complete document state
             for (let i = 0; i < this.decorators.length; i++) {
-                editor.setDecorations(this.decorators[i], spectra[i]);
+                editor.setDecorations(this.decorators[i], docDecorations.spectra[i]);
             }
             for (let i = 0; i < this.activeLevelDecorators.length; i++) {
-                editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
+                editor.setDecorations(
+                    this.activeLevelDecorators[i],
+                    docDecorations.activeLevelSpectra[i],
+                );
             }
             if (this.errorDecorator) {
-                editor.setDecorations(this.errorDecorator, errors);
+                editor.setDecorations(this.errorDecorator, docDecorations.errors);
             }
             if (this.mixDecorator) {
-                editor.setDecorations(this.mixDecorator, mixed);
+                editor.setDecorations(this.mixDecorator, docDecorations.mixed);
             }
         } else {
             // Only update decorations whose hashes have changed
             for (let i = 0; i < this.decorators.length; i++) {
                 if (lastState.spectraHashes[i] !== newState.spectraHashes[i]) {
-                    editor.setDecorations(this.decorators[i], spectra[i]);
+                    editor.setDecorations(this.decorators[i], docDecorations.spectra[i]);
                 }
             }
             for (let i = 0; i < this.activeLevelDecorators.length; i++) {
                 if (
-                    lastState.activeLevelSpectraHashes[i] !== newState.activeLevelSpectraHashes[i]
+                    lastState.activeLevelSpectraHashes[i] !==
+                    newState.activeLevelSpectraHashes[i]
                 ) {
-                    editor.setDecorations(this.activeLevelDecorators[i], activeLevelSpectra[i]);
+                    editor.setDecorations(
+                        this.activeLevelDecorators[i],
+                        docDecorations.activeLevelSpectra[i],
+                    );
                 }
             }
             if (this.errorDecorator && lastState.errorsHash !== newState.errorsHash) {
-                editor.setDecorations(this.errorDecorator, errors);
+                editor.setDecorations(this.errorDecorator, docDecorations.errors);
             }
             if (this.mixDecorator && lastState.mixedHash !== newState.mixedHash) {
-                editor.setDecorations(this.mixDecorator, mixed);
+                editor.setDecorations(this.mixDecorator, docDecorations.mixed);
             }
         }
 
@@ -201,7 +275,9 @@ export class DecorationSuite implements vscode.Disposable {
     }
 
     public clearState(uri: vscode.Uri): void {
-        this.lastState.delete(uri.toString());
+        const uriString = uri.toString();
+        this.lastState.delete(uriString);
+        this.documentDecorations.delete(uriString);
     }
 
     public getDecoratorCount(): number {
@@ -218,6 +294,7 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator?.dispose();
         this.mixDecorator = undefined;
         this.lastState.clear();
+        this.documentDecorations.clear();
         this.rangeHashCache = new WeakMap();
         ColorUtils.clearBrightnessCache();
     }

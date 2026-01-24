@@ -17,6 +17,7 @@ interface IndentationAnalysisResult {
     activeLevelSpectra: vscode.Range[][];
     errors: vscode.Range[];
     mixed: vscode.Range[];
+    processedLines: Set<number>;
 }
 
 export class IndentSpectra implements vscode.Disposable {
@@ -434,7 +435,7 @@ export class IndentSpectra implements vscode.Disposable {
             }
         }
 
-        return { spectra, activeLevelSpectra, errors, mixed };
+        return { spectra, activeLevelSpectra, errors, mixed, processedLines: linesToProcess };
     }
 
     private getOrAnalyzeLine(
@@ -479,6 +480,7 @@ export class IndentSpectra implements vscode.Disposable {
             result.activeLevelSpectra,
             result.errors,
             result.mixed,
+            result.processedLines,
         );
     }
 
@@ -502,10 +504,9 @@ export class IndentSpectra implements vscode.Disposable {
             return ignoredLines;
 
         const text = doc.getText();
-        const lineStarts: number[] = [0];
+        const lineStarts: number[] = [];
         for (let i = 0; i < doc.lineCount; i++) {
-            const lineOffset = doc.lineAt(i).range.start;
-            lineStarts.push(doc.offsetAt(lineOffset));
+            lineStarts.push(doc.offsetAt(doc.lineAt(i).range.start));
         }
 
         const getLineIndex = (offset: number): number => {
