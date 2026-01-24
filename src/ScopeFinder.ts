@@ -39,7 +39,16 @@ export class ScopeFinder {
             currentDepth = analyzeLine(activeLineNum).blocks.length;
         }
 
-        // 2. Look Forward (Next Non-Empty Line)
+        // 2. Look Back (Previous Non-Empty Line)
+        let prevDepth = currentDepth;
+        for (let i = activeLineNum - 1; i >= 0; i--) {
+            if (!this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) {
+                prevDepth = analyzeLine(i).blocks.length;
+                break;
+            }
+        }
+
+        // 3. Look Forward (Next Non-Empty Line)
         let nextDepth = currentDepth;
         for (let i = activeLineNum + 1; i < lineCount; i++) {
             if (!this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) {
@@ -48,16 +57,12 @@ export class ScopeFinder {
             }
         }
 
-        // 3. Determine Highlight Level
+        // 4. Determine Highlight Level
         let highlightLevel = -1;
 
         if (nextDepth > currentDepth) {
             // Opening Logic: We are opening a new block.
-            // Decision depends on cursor position.
-            // If cursor is at the end of the line (after content), we anticipate the new block -> Inner Scope.
-            // If cursor is in the middle (editing the header), we stay in context -> Parent Scope.
-
-            // Check if cursor is after the last non-whitespace character
+            // Check if cursor is after the last non-whitespace character (transitioning into block)
             const contentEndIndex = lineText.trimEnd().length;
             const isAtEnd = activeChar >= contentEndIndex;
 
@@ -66,8 +71,12 @@ export class ScopeFinder {
             } else {
                 highlightLevel = currentDepth > 0 ? currentDepth - 1 : -1; // Parent Scope
             }
+        } else if (prevDepth > currentDepth) {
+            // Closing Logic: The previous line was deeper, so we are closing a block.
+            // Highlight the current depth (matching the opening line of the block we are closing).
+            highlightLevel = currentDepth;
         } else {
-            // Standard / Closing Logic: Highlight parent scope (Current - 1)
+            // Standard Logic: Highlight parent scope (Current - 1)
             highlightLevel = currentDepth > 0 ? currentDepth - 1 : -1;
         }
 
@@ -75,7 +84,7 @@ export class ScopeFinder {
             return { highlightLevel: -1, blockStart: -1, blockEnd: -1 };
         }
 
-        // 4. Find Scope Boundaries
+        // 5. Find Scope Boundaries
         const targetBlockCount = highlightLevel + 1;
         let blockStart = activeLineNum;
         let blockEnd = activeLineNum;
