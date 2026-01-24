@@ -296,15 +296,16 @@ export class IndentSpectra implements vscode.Disposable {
             if (activeLineData.blocks.length === 0) {
                 highlightLevel = -1;
             } else {
-                highlightLevel = this.calculateHighlightLevel(
-                    doc,
-                    activeLineNum,
-                    cursorChar,
-                    activeLineData,
-                    tabSize,
-                    skipErrors,
-                    ignoredLines,
-                );
+                for (let i = 0; i < activeLineData.blocks.length; i++) {
+                    if (cursorChar <= activeLineData.blocks[i]) {
+                        highlightLevel = i;
+                        break;
+                    }
+                }
+
+                if (highlightLevel === -1) {
+                    highlightLevel = activeLineData.blocks.length - 1;
+                }
             }
 
             if (highlightLevel !== -1) {
@@ -446,41 +447,6 @@ export class IndentSpectra implements vscode.Disposable {
 
         if (cache) cache[line] = data;
         return data;
-    }
-
-    private calculateHighlightLevel(
-        doc: vscode.TextDocument,
-        lineNum: number,
-        cursorChar: number,
-        lineData: LineAnalysis,
-        _tabSize: number,
-        _skipErrors: boolean,
-        _ignoredLines: Set<number>,
-    ): number {
-        const lineText = doc.lineAt(lineNum).text;
-        const firstNonWhitespace = lineText.search(/\S/);
-
-        // Special case: if cursor is before content and line has opening brace
-        if (cursorChar < firstNonWhitespace && lineText.includes('{')) {
-            // Highlight the deepest level this line has
-            return lineData.blocks.length - 1;
-        }
-
-        // Special case: if cursor is after or at content position and line has opening brace
-        if (cursorChar >= firstNonWhitespace && lineText.includes('{')) {
-            // Highlight the level this brace introduces
-            return lineData.blocks.length;
-        }
-
-        // Default: use cursor position relative to indent blocks
-        for (let i = 0; i < lineData.blocks.length; i++) {
-            if (cursorChar <= lineData.blocks[i]) {
-                return i;
-            }
-        }
-
-        // Cursor is past all blocks, return the last level
-        return lineData.blocks.length - 1;
     }
 
     private isEmptyOrIgnored(text: string, isIgnored: boolean): boolean {
