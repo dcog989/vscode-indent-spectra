@@ -21,58 +21,73 @@ export class ScopeFinder {
             return { highlightLevel: -1, blockStart: -1, blockEnd: -1 };
         }
 
-        // 1. Determine Reference Depth
-        // If current line is empty/whitespace, look back for the context of the previous non-empty line
-        let referenceLineData = analyzeLine(activeLineNum);
+        // 1. Analyze Current Line
+        const currentDepth = this.getDepth(doc, activeLineNum, ignoredLines, analyzeLine);
 
-        if (
-            this.isEmptyOrIgnored(doc.lineAt(activeLineNum).text, ignoredLines.has(activeLineNum))
-        ) {
-            for (let i = activeLineNum - 1; i >= 0; i--) {
-                const isIgnored = ignoredLines.has(i);
-                const text = doc.lineAt(i).text;
-                if (!this.isEmptyOrIgnored(text, isIgnored)) {
-                    referenceLineData = analyzeLine(i);
-                    break;
-                }
+        // 2. Look Back (Previous Non-Empty Line)
+        let prevDepth = currentDepth;
+        for (let i = activeLineNum - 1; i >= 0; i--) {
+            if (!this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) {
+                prevDepth = this.getDepth(doc, i, ignoredLines, analyzeLine);
+                break;
             }
         }
 
-        const targetDepth = referenceLineData.blocks.length;
+        // 3. Look Forward (Next Non-Empty Line)
+        let nextDepth = currentDepth;
+        for (let i = activeLineNum + 1; i < lineCount; i++) {
+            if (!this.isEmptyOrIgnored(doc.lineAt(i).text, ignoredLines.has(i))) {
+                nextDepth = this.getDepth(doc, i, ignoredLines, analyzeLine);
+                break;
+            }
+        }
 
-        // If still 0 depth (top level), no active highlight
-        if (targetDepth === 0) {
+        // 4. Determine Highlight Level based on Context
+        let highlightLevel = -1;
+
+        if (nextDepth > currentDepth) {
+            // Opening Logic: If we are opening a block, highlight the inner scope
+            highlightLevel = currentDepth;
+        } else if (prevDepth > currentDepth) {
+            // Closing Logic: If we are closing a block, highlight the inner scope
+            highlightLevel = currentDepth;
+        } else {
+            // Standard Logic: Highlight parent scope
+            highlightLevel = currentDepth > 0 ? currentDepth - 1 : -1;
+        }
+
+        if (highlightLevel === -1) {
             return { highlightLevel: -1, blockStart: -1, blockEnd: -1 };
         }
 
-        // The active guide corresponds to the current scope's depth (0-indexed level is depth - 1)
-        const highlightLevel = targetDepth - 1;
+        // 5. Find Scope Boundaries
+        // We scan up/down to find the visual extents of this guide
+        // The guide exists at 'highlightLevel' (0-indexed).
+        // This corresponds to a block depth of 'highlightLevel + 1'.
+
+        const targetBlockCount = highlightLevel + 1;
         let blockStart = activeLineNum;
         let blockEnd = activeLineNum;
 
-        // 2. Scan Upwards (Find Scope Start) - Stop at parent scope (indent < current)
+        // Scan Upwards
         for (let i = activeLineNum - 1; i >= 0; i--) {
             const isIgnored = ignoredLines.has(i);
             const text = doc.lineAt(i).text;
 
-            // Skip empty lines during scan to maintain continuity (don't break scope on empty line)
             if (this.isEmptyOrIgnored(text, isIgnored)) {
-                // If we hit top of file while skipping empty lines, start is 0
                 if (i === 0) blockStart = 0;
                 continue;
             }
 
-            const data = analyzeLine(i);
-            // Found a line with strictly less indentation -> Parent
-            if (data.blocks.length < targetDepth) {
-                blockStart = i;
+            const depth = this.getDepth(doc, i, ignoredLines, analyzeLine);
+            if (depth < targetBlockCount) {
+                blockStart = i; // Guide connects to this parent line
                 break;
             }
-            // Otherwise, it's part of the block or a child block, extend start
             blockStart = i;
         }
 
-        // 3. Scan Downwards (Find Scope End)
+        // Scan Downwards
         for (let i = activeLineNum + 1; i < lineCount; i++) {
             const isIgnored = ignoredLines.has(i);
             const text = doc.lineAt(i).text;
@@ -82,16 +97,27 @@ export class ScopeFinder {
                 continue;
             }
 
-            const data = analyzeLine(i);
-            if (data.blocks.length < targetDepth) {
-                // Found end of block (closing brace or next block at parent level)
-                blockEnd = i;
+            const depth = this.getDepth(doc, i, ignoredLines, analyzeLine);
+            if (depth < targetBlockCount) {
+                blockEnd = i; // Guide connects to this closing line
                 break;
             }
             blockEnd = i;
         }
 
         return { highlightLevel, blockStart, blockEnd };
+    }
+
+    private static getDepth(
+        doc: vscode.TextDocument,
+        line: number,
+        ignoredLines: Set<number>,
+        analyzeLine: LineAnalysisProvider,
+    ): number {
+        if (this.isEmptyOrIgnored(doc.lineAt(line).text, ignoredLines.has(line))) {
+            return 0;
+        }
+        return analyzeLine(line).blocks.length;
     }
 
     private static isEmptyOrIgnored(text: string, isIgnored: boolean): boolean {
