@@ -38,11 +38,6 @@ export class IndentSpectra implements vscode.Disposable {
         { sequence: number; event: vscode.TextDocumentChangeEvent }
     >();
 
-    private decorationArraysCache = new Map<
-        string,
-        { spectra: vscode.Range[][]; activeLevelSpectra: vscode.Range[][] }
-    >();
-
     public checkAndUpdateDirtyDocument(uri: vscode.Uri): void {
         const uriString = uri.toString();
         if (this.dirtyDocuments.has(uriString)) {
@@ -221,6 +216,14 @@ export class IndentSpectra implements vscode.Disposable {
         if (config.ignoredLanguages.has(doc.languageId)) return;
 
         const uri = doc.uri.toString();
+
+        // Check and clear dirty status ONCE per document, not per line
+        if (this.dirtyDocuments.has(uri)) {
+            this.lineCache.delete(uri);
+            this.lastAppliedState.delete(uri);
+            this.dirtyDocuments.delete(uri);
+        }
+
         const tabSize = this.resolveTabSize(editor);
         const ranges = editor.visibleRanges.length > 0 ? editor.visibleRanges : [];
 
@@ -359,23 +362,12 @@ export class IndentSpectra implements vscode.Disposable {
             vscode.window.activeColorTheme.kind,
         );
         const decoratorCount = decorationSuite?.getDecoratorCount() ?? 0;
-        const cacheKey = `${decoratorCount}`;
 
-        let cachedArrays = this.decorationArraysCache.get(cacheKey);
-        if (!cachedArrays) {
-            cachedArrays = {
-                spectra: Array.from({ length: decoratorCount }, () => []),
-                activeLevelSpectra: Array.from({ length: decoratorCount }, () => []),
-            };
-            this.decorationArraysCache.set(cacheKey, cachedArrays);
-        }
-
-        // Clear arrays for reuse
-        cachedArrays.spectra.forEach((array) => (array.length = 0));
-        cachedArrays.activeLevelSpectra.forEach((array) => (array.length = 0));
-
-        const spectra = cachedArrays.spectra;
-        const activeLevelSpectra = cachedArrays.activeLevelSpectra;
+        const spectra: vscode.Range[][] = Array.from({ length: decoratorCount }, () => []);
+        const activeLevelSpectra: vscode.Range[][] = Array.from(
+            { length: decoratorCount },
+            () => [],
+        );
         const errors: vscode.Range[] = [];
         const mixed: vscode.Range[] = [];
         const linesToProcess = new Set<number>();
@@ -446,14 +438,6 @@ export class IndentSpectra implements vscode.Disposable {
         isIgnored: boolean,
     ): LineAnalysis {
         const uri = doc.uri.toString();
-
-        // Check if this document is dirty and clear cache if needed
-        if (this.dirtyDocuments.has(uri)) {
-            this.lineCache.delete(uri);
-            this.lastAppliedState.delete(uri);
-            this.dirtyDocuments.delete(uri);
-        }
-
         const cache = this.lineCache.get(uri);
         if (cache?.[line] && cache[line]?.isIgnored === isIgnored) return cache[line]!;
 

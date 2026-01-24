@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
@@ -183,10 +183,9 @@ export class DecorationSuite implements vscode.Disposable {
                 );
             }
             for (let i = 0; i < docDecorations.activeLevelSpectra.length; i++) {
-                docDecorations.activeLevelSpectra[i] =
-                    docDecorations.activeLevelSpectra[i].filter(
-                        (range) => !processedLines.has(range.start.line),
-                    );
+                docDecorations.activeLevelSpectra[i] = docDecorations.activeLevelSpectra[i].filter(
+                    (range) => !processedLines.has(range.start.line),
+                );
             }
             docDecorations.errors = docDecorations.errors.filter(
                 (range) => !processedLines.has(range.start.line),
@@ -252,8 +251,7 @@ export class DecorationSuite implements vscode.Disposable {
             }
             for (let i = 0; i < this.activeLevelDecorators.length; i++) {
                 if (
-                    lastState.activeLevelSpectraHashes[i] !==
-                    newState.activeLevelSpectraHashes[i]
+                    lastState.activeLevelSpectraHashes[i] !== newState.activeLevelSpectraHashes[i]
                 ) {
                     editor.setDecorations(
                         this.activeLevelDecorators[i],

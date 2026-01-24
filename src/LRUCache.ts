@@ -11,13 +11,7 @@ export class LRUCache<K, V> {
     }
 
     get(key: K): V | undefined {
-        const value = this.cache.get(key);
-        if (value !== undefined) {
-            // Move to end (most recently used)
-            this.cache.delete(key);
-            this.cache.set(key, value);
-        }
-        return value;
+        return this.cache.get(key);
     }
 
     set(key: K, value: V): void {
