@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on: [push, pull_request]
 
@@ -18,7 +18,7 @@ jobs:
         run: bun install
 
       - name: Check types
-        run: bun run check-types
+        run: bun run typecheck
 
       - name: Lint code
         run: bun run lint
@@ -27,11 +27,7 @@ jobs:
         run: bun run format:check
 
       - name: Build bundle
-        run: bun run bundle
-
-      - name: Analyze bundle size
-        run: |
-          bun run bundle --production | grep -E "(bundle size|gzip)" || true
+        run: bun run build
 
       - name: Compile TypeScript
         run: bun run compile
@@ -45,4 +41,4 @@ jobs:
       - name: Run tests Headlessly
         # xvfb-run executes the tests within a virtual screen environment,
         # satisfying the VS Code/Electron application's need for a display.
-        run: xvfb-run -a bun test
+        run: xvfb-run -a bun run test
