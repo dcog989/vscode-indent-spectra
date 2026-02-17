@@ -8,20 +8,6 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
     // Test setup
     suiteSetup(async () => {
         vscode.window.showInformationMessage('Starting Indent Spectra Tests');
-
-        // Force extension activation before any test runs.
-        // The extension activates on `onLanguage`, so opening a document triggers it.
-        // Without this, config.update() calls fail because the extension schema
-        // isn't registered until after activation.
-        const ext = vscode.extensions.getExtension('dcog989.indent-spectra');
-        if (ext && !ext.isActive) {
-            const doc = await vscode.workspace.openTextDocument({
-                content: '',
-                language: 'javascript',
-            });
-            await vscode.window.showTextDocument(doc);
-            await ext.activate();
-        }
     });
 
     suiteTeardown(async () => {
@@ -153,67 +139,67 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'universal', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'universal', vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Universal preset should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should load and apply protan-deuteran color preset', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'protan-deuteran', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'protan-deuteran', vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Protan-deuteran preset should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should load and apply tritan color preset', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'tritan', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'tritan', vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Tritan preset should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should load and apply cool color preset', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'cool', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'cool', vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Cool preset should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should load and apply warm color preset', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'warm', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'warm', vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Warm preset should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should handle custom colors with valid RGBA values', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Global);
         await config.update(
             'colors',
             [
@@ -222,51 +208,51 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
                 'rgba(0, 0, 255, 0.1)',
                 'rgba(255, 255, 0, 0.1)',
             ],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Custom colors should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
-        await config.update('colors', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
+        await config.update('colors', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should handle custom colors with hex values', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Global);
         await config.update(
             'colors',
             ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
         assert.ok(true, 'Hex colors should load');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
-        await config.update('colors', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
+        await config.update('colors', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should reject invalid custom colors and fallback to universal', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', 'custom', vscode.ConfigurationTarget.Global);
         await config.update(
             'colors',
             ['invalid_color_xyz', 'also_bad_123'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         // Should not crash; should fallback to universal palette
         indentSpectra.reloadConfig();
         assert.ok(true, 'Invalid colors should fallback gracefully');
 
-        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Workspace);
-        await config.update('colors', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('colorPreset', undefined, vscode.ConfigurationTarget.Global);
+        await config.update('colors', undefined, vscode.ConfigurationTarget.Global);
     });
 
     // ============================================================================
@@ -278,56 +264,56 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
         // Update delay setting
-        await config.update('updateDelay', 200, vscode.ConfigurationTarget.Workspace);
+        await config.update('updateDelay', 200, vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
 
         const newDelay = vscode.workspace.getConfiguration('indentSpectra').get('updateDelay');
         assert.strictEqual(newDelay, 200, 'Update delay should be 200ms');
 
-        await config.update('updateDelay', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('updateDelay', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should update indicator style from classic to light', async () => {
         indentSpectra = new IndentSpectra();
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        await config.update('indicatorStyle', 'light', vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', 'light', vscode.ConfigurationTarget.Global);
         indentSpectra.reloadConfig();
 
         const style = vscode.workspace.getConfiguration('indentSpectra').get('indicatorStyle');
         assert.strictEqual(style, 'light', 'Indicator style should be light');
 
-        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should update indicator style from light to classic', async () => {
         indentSpectra = new IndentSpectra();
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        await config.update('indicatorStyle', 'classic', vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', 'classic', vscode.ConfigurationTarget.Global);
         indentSpectra.reloadConfig();
 
         const style = vscode.workspace.getConfiguration('indentSpectra').get('indicatorStyle');
         assert.strictEqual(style, 'classic', 'Indicator style should be classic');
 
-        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should update light indicator width', async () => {
         indentSpectra = new IndentSpectra();
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
-        await config.update('indicatorStyle', 'light', vscode.ConfigurationTarget.Workspace);
-        await config.update('lightIndicatorWidth', 3, vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', 'light', vscode.ConfigurationTarget.Global);
+        await config.update('lightIndicatorWidth', 3, vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
 
         const width = vscode.workspace.getConfiguration('indentSpectra').get('lightIndicatorWidth');
         assert.strictEqual(width, 3, 'Light indicator width should be 3');
 
-        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Workspace);
-        await config.update('lightIndicatorWidth', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('indicatorStyle', undefined, vscode.ConfigurationTarget.Global);
+        await config.update('lightIndicatorWidth', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should update error color', async () => {
@@ -337,7 +323,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'errorColor',
             'rgba(255, 0, 0, 0.7)',
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -345,7 +331,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const errorColor = vscode.workspace.getConfiguration('indentSpectra').get('errorColor');
         assert.strictEqual(errorColor, 'rgba(255, 0, 0, 0.7)', 'Error color should be updated');
 
-        await config.update('errorColor', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('errorColor', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should update mix color', async () => {
@@ -355,7 +341,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'mixColor',
             'rgba(255, 255, 0, 0.8)',
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -363,7 +349,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const mixColor = vscode.workspace.getConfiguration('indentSpectra').get('mixColor');
         assert.strictEqual(mixColor, 'rgba(255, 255, 0, 0.8)', 'Mix color should be updated');
 
-        await config.update('mixColor', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('mixColor', undefined, vscode.ConfigurationTarget.Global);
     });
 
     // ============================================================================
@@ -377,7 +363,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignorePatterns',
             ['/[ \t]*[*]/g', '/[ \t]+[/]{2}/g'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -393,14 +379,14 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Ignore patterns should be applied without crashing');
 
-        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Global);
     });
 
     test('Should handle empty ignore patterns', async () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Global);
 
         indentSpectra.reloadConfig();
 
@@ -414,7 +400,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Empty ignore patterns should work');
 
-        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Global);
     });
 
     test('Should ignore error highlighting for specified languages', async () => {
@@ -424,7 +410,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignoreErrorLanguages',
             ['markdown', 'plaintext'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -443,7 +429,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignoreErrorLanguages',
             undefined,
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
     });
 
@@ -458,7 +444,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignoredLanguages',
             ['plaintext'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
 
         indentSpectra.reloadConfig();
@@ -472,7 +458,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Plaintext should be skipped');
 
-        await config.update('ignoredLanguages', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('ignoredLanguages', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Should process non-ignored languages normally', async () => {
@@ -646,7 +632,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         await config.update(
             'ignorePatterns',
             ['/\\/\\*[\\s\\S]*?\\*\\//g'],
-            vscode.ConfigurationTarget.Workspace,
+            vscode.ConfigurationTarget.Global,
         );
         indentSpectra.reloadConfig();
 
@@ -662,7 +648,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         assert.ok(true, 'Multi-line ignore pattern processed successfully');
 
         // Cleanup
-        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Global);
     });
 
     // ============================================================================
@@ -673,7 +659,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         const config = vscode.workspace.getConfiguration('indentSpectra');
 
         // Pattern looking for 'ignore' at the end of a line
-        await config.update('ignorePatterns', ['/ignore$/'], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', ['/ignore$/'], vscode.ConfigurationTarget.Global);
         indentSpectra.reloadConfig();
 
         const content = 'line to ignore\n  not this one';
@@ -683,6 +669,6 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Regex with end anchor should be compiled and executed correctly');
 
-        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Global);
     });
 });
