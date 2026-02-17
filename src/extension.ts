@@ -1,10 +1,16 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import { IndentSpectra } from './IndentSpectra';
 
 let indentSpectra: IndentSpectra | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     indentSpectra = new IndentSpectra();
+
+    const triggerIfVisible = (textEditor: vscode.TextEditor): void => {
+        if (vscode.window.visibleTextEditors.includes(textEditor)) {
+            indentSpectra?.triggerUpdate();
+        }
+    };
 
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor((editor) => {
@@ -15,23 +21,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             indentSpectra?.triggerUpdate(undefined, true);
         }),
 
-        vscode.window.onDidChangeTextEditorOptions((event) => {
-            if (vscode.window.visibleTextEditors.some((editor) => editor === event.textEditor)) {
-                indentSpectra?.triggerUpdate();
-            }
-        }),
+        vscode.window.onDidChangeTextEditorOptions((event) => triggerIfVisible(event.textEditor)),
 
-        vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
-            if (vscode.window.visibleTextEditors.some((editor) => editor === event.textEditor)) {
-                indentSpectra?.triggerUpdate();
-            }
-        }),
+        vscode.window.onDidChangeTextEditorVisibleRanges((event) =>
+            triggerIfVisible(event.textEditor),
+        ),
 
-        vscode.window.onDidChangeTextEditorSelection((event) => {
-            if (vscode.window.visibleTextEditors.some((editor) => editor === event.textEditor)) {
-                indentSpectra?.triggerUpdate();
-            }
-        }),
+        vscode.window.onDidChangeTextEditorSelection((event) => triggerIfVisible(event.textEditor)),
 
         vscode.workspace.onDidChangeTextDocument((event) => {
             const isVisible = vscode.window.visibleTextEditors.some(
