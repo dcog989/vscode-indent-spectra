@@ -1,4 +1,4 @@
-export interface ParsedColor {
+﻿export interface ParsedColor {
     r: number;
     g: number;
     b: number;
@@ -265,10 +265,12 @@ export class ColorUtils {
     }
 
     public static applyBrightness(
-        parsed: ParsedColor,
+        parsed: ParsedColor | null,
         brightness: number,
         isLightTheme: boolean,
     ): string {
+        if (!parsed) return '';
+
         const factor = brightness / 10;
 
         let { r, g, b, a } = parsed;
