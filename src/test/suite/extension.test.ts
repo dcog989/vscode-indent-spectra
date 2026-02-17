@@ -426,7 +426,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Error highlighting should be ignored for markdown');
 
-        await config.update('ignoreErrorLanguages', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update(
+            'ignoreErrorLanguages',
+            undefined,
+            vscode.ConfigurationTarget.Workspace,
+        );
     });
 
     // ============================================================================
@@ -437,7 +441,11 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra = new IndentSpectra();
 
         const config = vscode.workspace.getConfiguration('indentSpectra');
-        await config.update('ignoredLanguages', ['plaintext'], vscode.ConfigurationTarget.Workspace);
+        await config.update(
+            'ignoredLanguages',
+            ['plaintext'],
+            vscode.ConfigurationTarget.Workspace,
+        );
 
         indentSpectra.reloadConfig();
 
