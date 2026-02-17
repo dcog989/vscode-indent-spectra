@@ -3,19 +3,14 @@ import type * as vscode from 'vscode';
 
 export class ConfigUtils {
     public static computeConfigKey(config: IndentSpectraConfig): string {
-        return (
-            config.colors.join(',') +
-            '|' +
-            config.errorColor +
-            '|' +
-            config.mixColor +
-            '|' +
-            config.indicatorStyle +
-            '|' +
-            config.lightIndicatorWidth +
-            '|' +
-            config.activeIndentBrightness
-        );
+        return JSON.stringify({
+            colors: config.colors,
+            errorColor: config.errorColor,
+            mixColor: config.mixColor,
+            indicatorStyle: config.indicatorStyle,
+            lightIndicatorWidth: config.lightIndicatorWidth,
+            activeIndentBrightness: config.activeIndentBrightness,
+        });
     }
 
     public static hashRanges(ranges: readonly vscode.Range[]): number {
