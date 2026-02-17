@@ -122,16 +122,26 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator = DecorationFactory.createMixDecoration(config) ?? undefined;
     }
 
-    private rangeHashCache = new WeakMap<vscode.Range[], number>();
+    private rangeHashCache = new Map<string, number>();
+
+    private computeRangeKey(ranges: vscode.Range[]): string {
+        if (ranges.length === 0) return '';
+        const parts: string[] = [];
+        for (const range of ranges) {
+            parts.push(
+                `${range.start.line},${range.start.character},${range.end.line},${range.end.character}`,
+            );
+        }
+        return parts.join(';');
+    }
 
     private hashRanges(ranges: vscode.Range[]): number {
         if (ranges.length === 0) return 0;
 
-        // Check cache first
-        const cached = this.rangeHashCache.get(ranges);
+        const cacheKey = this.computeRangeKey(ranges);
+        const cached = this.rangeHashCache.get(cacheKey);
         if (cached !== undefined) return cached;
 
-        // Simple hash: combine line numbers and positions
         let hash = ranges.length * 31;
         for (const range of ranges) {
             hash = (hash << 5) - hash + range.start.line;
@@ -139,10 +149,9 @@ export class DecorationSuite implements vscode.Disposable {
             hash = (hash << 5) - hash + range.end.line;
             hash = (hash << 5) - hash + range.end.character;
         }
-        const result = hash >>> 0; // Convert to unsigned 32-bit
+        const result = hash >>> 0;
 
-        // Cache the result
-        this.rangeHashCache.set(ranges, result);
+        this.rangeHashCache.set(cacheKey, result);
         return result;
     }
 
@@ -293,7 +302,7 @@ export class DecorationSuite implements vscode.Disposable {
         this.mixDecorator = undefined;
         this.lastState.clear();
         this.documentDecorations.clear();
-        this.rangeHashCache = new WeakMap();
+        this.rangeHashCache.clear();
         ColorUtils.clearBrightnessCache();
     }
 }
