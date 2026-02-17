@@ -44,6 +44,7 @@
 - KISS, DRY, YAGNI
 - Optimize for performance
 - Self-documenting code via clear naming
+- Use comments only where *necessary* for workarounds, to do, etc.
 - No magic numbers - use constants (e.g., `CHUNK_SIZE_LINES`)
 - No docs files unless explicitly requested
 
