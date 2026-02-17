@@ -8,6 +8,20 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
     // Test setup
     suiteSetup(async () => {
         vscode.window.showInformationMessage('Starting Indent Spectra Tests');
+
+        // Force extension activation before any test runs.
+        // The extension activates on `onLanguage`, so opening a document triggers it.
+        // Without this, config.update() calls fail because the extension schema
+        // isn't registered until after activation.
+        const ext = vscode.extensions.getExtension('dcog989.indent-spectra');
+        if (ext && !ext.isActive) {
+            const doc = await vscode.workspace.openTextDocument({
+                content: '',
+                language: 'javascript',
+            });
+            await vscode.window.showTextDocument(doc);
+            await ext.activate();
+        }
     });
 
     suiteTeardown(async () => {
