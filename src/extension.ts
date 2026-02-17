@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { IndentSpectra } from './IndentSpectra';
 
 let indentSpectra: IndentSpectra | undefined;

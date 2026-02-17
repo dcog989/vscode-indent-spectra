@@ -1,4 +1,4 @@
-﻿import type * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 
 const HASH_MULTIPLIER = 31;

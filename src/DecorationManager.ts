@@ -1,4 +1,4 @@
-﻿import type * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigUtils } from './ConfigUtils';

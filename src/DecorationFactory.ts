@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import { IndicatorStyle, type IndentSpectraConfig } from './ConfigurationManager';
 

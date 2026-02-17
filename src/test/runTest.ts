@@ -1,4 +1,4 @@
-﻿import { runTests } from '@vscode/test-electron';
+import { runTests } from '@vscode/test-electron';
 import * as path from 'path';
 
 async function main() {

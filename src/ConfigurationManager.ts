@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { PALETTES, type PaletteKey } from './colors';
 import { ColorUtils } from './ColorUtils';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';

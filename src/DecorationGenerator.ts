@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import type { LineAnalysis } from './IndentationEngine';
 
 const YIELD_EVERY_LINES = 200;

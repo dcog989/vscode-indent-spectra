@@ -1,4 +1,4 @@
-﻿import type * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
 
 const YIELD_TIMEOUT_MS = 5;
