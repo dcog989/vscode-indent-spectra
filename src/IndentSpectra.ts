@@ -135,6 +135,9 @@ export class IndentSpectra implements vscode.Disposable {
 
     public triggerUpdate(event?: vscode.TextDocumentChangeEvent, immediate = false): void {
         if (this.isDisposed) return;
+
+        this.cancelCurrentWork();
+
         if (this.timeout) {
             clearTimeout(this.timeout);
             this.timeout = null;
@@ -145,7 +148,6 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         const run = async (): Promise<void> => {
-            this.cancelCurrentWork();
             this.cancellationSource = new vscode.CancellationTokenSource();
             await this.updateAll(this.cancellationSource.token);
         };
