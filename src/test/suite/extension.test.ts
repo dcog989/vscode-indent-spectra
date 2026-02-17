@@ -393,7 +393,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Ignore patterns should be applied without crashing');
 
-        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
     });
 
     test('Should handle empty ignore patterns', async () => {
@@ -414,7 +414,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Empty ignore patterns should work');
 
-        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
     });
 
     test('Should ignore error highlighting for specified languages', async () => {
@@ -662,7 +662,7 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         assert.ok(true, 'Multi-line ignore pattern processed successfully');
 
         // Cleanup
-        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
     });
 
     // ============================================================================
@@ -683,6 +683,6 @@ suite('Indent Spectra Comprehensive Test Suite', () => {
         indentSpectra.triggerUpdate();
         assert.ok(true, 'Regex with end anchor should be compiled and executed correctly');
 
-        await config.update('ignorePatterns', undefined, vscode.ConfigurationTarget.Workspace);
+        await config.update('ignorePatterns', [], vscode.ConfigurationTarget.Workspace);
     });
 });
