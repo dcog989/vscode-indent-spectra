@@ -30,7 +30,7 @@ AGENTS.md
 .git/
 .gitignore
 .repomixignore
-repomix.config.json
+repomix.*.json
 vsc-extension-quickstart.md
 
 # --- Selective Asset Ignore ---
