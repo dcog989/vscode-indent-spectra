@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "indent-spectra",
   "displayName": "Indent Spectra",
   "description": "Colorizes indentation. Fast, slim, modern architecture. Palettes based on color theory. Does what 'indent-rainbow' does, just better.",
-  "version": "1.5.11",
+  "version": "1.5.12",
   "publisher": "dcog989",
   "icon": "assets/icon.png",
   "repository": {
@@ -43,7 +43,7 @@
     "package": "vsce package",
     "test": "bun run build && bun run compile && node ./out/test/runTest.js",
     "typecheck": "tsc --noEmit",
-    "vscode:prepublish": "NODE_NO_WARNINGS=1 bun run check && bun run build",
+    "vscode:prepublish": "bun run check && bun run build",
     "watch": "node esbuild.js --watch"
   },
   "devDependencies": {
