@@ -1,147 +1,53 @@
 # VS Code Indent Spectra Guidelines
 
-Indent Spectra is an extension for VS Code that colorises line indentation to aid user readability. It prioritises performance, minimal resource usage.
+'Indent Spectra' colors line indentation for readability. Prioritizes performance and minimal resource usage.
 
 ## Tech Stack
 
-- **TypeScript 5.9** with strict mode enabled
+- **TypeScript 5.9** (strict mode)
 - **VS Code Extension API** (^1.109.0)
-- **Node.js** runtime (ES2024 target)
-- **esbuild** for bundling (production builds)
-- **Bun** for package management and scripts
-- **Mocha** for testing
-- **ESLint** for linting
+- **Node.js** (ES2024 target)
+- **esbuild** for bundling
+- **Bun** for package management
+- **Mocha** + **ESLint** for testing/linting
 
 ## Entry Points
 
-### Extension Entry Point
-
-- **Main**: `src/extension.ts` - Exports `activate()` and `deactivate()` functions
-    - Creates `IndentSpectra` instance
-    - Sets up VS Code event listeners (document changes, editor changes, configuration changes)
-    - Manages extension lifecycle
-
-### Core Components
-
-- **IndentSpectra** (`src/IndentSpectra.ts`) - Main rendering engine
-    - Manages decorators and caching
-    - Analyzes indentation patterns
-    - Applies decorations to visible text
-    - Handles incremental updates
-
-- **ConfigurationManager** (`src/ConfigurationManager.ts`) - Configuration management
-    - Loads and validates settings from VS Code configuration
-    - Compiles regex patterns for ignored lines
-    - Provides color palette resolution
-    - Emits configuration change events
-
-- **colors.ts** (`src/colors.ts`) - Color palettes and definitions
-    - Defines preset color palettes (universal, protan-deuteran, tritan, cool, warm)
-    - CSS named colors validation
-
-### Build Output
-
-- **Bundled**: `dist/extension.js` (for both Node and browser)
-- **Compiled**: `out/` directory (TypeScript compilation for testing)
+- `src/extension.ts` - Main entry, exports `activate()` / `deactivate()`
+- `src/IndentSpectra.ts` - Core rendering engine (decorators, caching, incremental updates)
+- `src/ConfigurationManager.ts` - Settings management and color palette resolution
 
 ## Key Architecture
 
-### Performance Optimizations
+- **O(1) Lookups**: Uses `Set` for ignored lines
+- **Caching**: Per-document line analysis, ignore patterns, applied state
+- **Smart Debouncing**: Configurable delay (default 100ms)
+- **Chunked Processing**: 1000-line chunks with yielding
+- **Visible Range Optimization**: Only processes visible + 50 line buffer
 
-1. **O(1) Lookups**: Uses `Set` for ignored lines instead of array searches
-2. **Incremental Caching**: Caches line analysis results per document URI
-3. **Smart Debouncing**: Configurable delay (default 100ms) before updating decorations
-4. **Chunked Processing**: Processes large files in 1000-line chunks with yielding
-5. **Visible Range Optimization**: Only processes visible lines + buffer (50 lines)
-6. **Cancellation Tokens**: Cancels in-progress work when new updates arrive
+## Event Handling
 
-### Caching Strategy
+- `onDidChangeActiveTextEditor`, `onDidChangeTextEditorOptions`, `onDidChangeTextEditorVisibleRanges`
+- `onDidChangeTextDocument`, `onDidOpenTextDocument`, `onDidCloseTextDocument`
+- `onDidChangeConfiguration`
 
-- **lineCache**: Stores analyzed line data per document (blocks, visual width, flags)
-- **ignoredLinesCache**: Caches lines matching ignore patterns
-- **lastAppliedState**: Tracks last applied state to avoid redundant updates
-- **lastTabSize**: Tracks tab size changes to invalidate cache
+## Commands
 
-### Event Handling
-
-Extension responds to:
-
-- `onDidChangeActiveTextEditor` - Clear state, trigger update
-- `onDidChangeTextEditorOptions` - Trigger update
-- `onDidChangeTextEditorVisibleRanges` - Trigger update
-- `onDidChangeTextDocument` - Incremental cache update
-- `onDidOpenTextDocument` - Trigger update
-- `onDidCloseTextDocument` - Clear cache
-- `onDidChangeConfiguration` - Reload config
-
-### Decorator System
-
-- **Spectra decorators**: Array of decorators for indent levels (cycles through colors)
-- **Error decorator**: Highlights malformed indentation
-- **Mix decorator**: Highlights mixed tabs/spaces
-- **Styles**: Classic (background) or Light (border line)
+- `bun install` - Install dependencies
+- `bun run test` - Run tests
+- `bun run lint` - Run ESLint
+- `bun run compile` - TypeScript compilation
+- `bun run build` - Production build
 
 ## Coding Principles
 
-- Use current coding standards and patterns
-- KISS, Occam's razor, DRY, YAGNI
-- Optimize for actual and perceived performance
+- KISS, DRY, YAGNI
+- Optimize for performance
 - Self-documenting code via clear naming
-- Comments only for workarounds/complex logic
-- No magic numbers - use constants like `CHUNK_SIZE_LINES`, `VISIBLE_LINE_BUFFER`
-- **Do NOT create docs files** (summary, reference, testing, etc.) unless explicitly instructed
+- No magic numbers - use constants (e.g., `CHUNK_SIZE_LINES`)
+- No docs files unless explicitly requested
 
-## File System Access
+## File Access
 
-### Allowed
-
-- All root folders and files unless excluded, below.
-
-### Disallowed
-
-- `.assets/`, `.context/`, `.docs/`, `.git/`, `node_modules/`
-- `repomix.config.json`, `bun.lock`, `AGENTS.md`, `.repomixignore`
-
-## Common Patterns
-
-### Async Work with Cancellation
-
-```typescript
-this.cancellationSource = new vscode.CancellationTokenSource();
-await this.someAsyncWork(this.cancellationSource.token);
-// Check token.isCancellationRequested periodically
-```
-
-### Debounced Updates
-
-```typescript
-if (this.timeout) clearTimeout(this.timeout);
-this.timeout = setTimeout(() => this.update(), delay);
-```
-
-### Cache Invalidation
-
-```typescript
-// Clear all caches for a document
-this.lineCache.delete(uriString);
-this.ignoredLinesCache.delete(uriString);
-this.lastAppliedState.delete(uriString);
-```
-
-### Line Analysis Result Structure
-
-```typescript
-interface LineAnalysis {
-    blocks: number[]; // Character positions of indent boundaries
-    visualWidth: number; // Visual width considering tab expansion
-    isMixed: boolean; // Mixed tabs and spaces
-    isError: boolean; // Incorrect indentation
-    isIgnored: boolean; // Matches ignore pattern
-}
-```
-
-### Configuration Management
-
-- Always use `this.configManager.current` to access config
-- Listen to `configManager.onDidChangeConfig` for updates
-- Config changes trigger decorator recreation and cache clearing
+- Allowed: All source files in root
+- Excluded: `.assets/`, `.docs/`, `.git/`, `node_modules/`, `bun.lock`
