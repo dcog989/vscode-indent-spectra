@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
 import { IndicatorStyle, type IndentSpectraConfig } from './ConfigurationManager';
 
@@ -14,6 +14,8 @@ export interface DecorationResult {
     decorationType: vscode.TextEditorDecorationType;
     hash: number;
 }
+
+const DJB2_HASH_SEED = 5381;
 
 export class DecorationFactory {
     public static createDecorationType(
@@ -39,7 +41,7 @@ export class DecorationFactory {
     }
 
     public static hashDecorationOptions(options: DecorationOptions): number {
-        let hash = 5381;
+        let hash = DJB2_HASH_SEED;
         hash = (hash << 5) + hash + options.color.length;
         for (let i = 0; i < options.color.length; i++) {
             hash = (hash << 5) + hash + options.color.charCodeAt(i);

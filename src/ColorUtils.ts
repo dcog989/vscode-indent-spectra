@@ -43,6 +43,10 @@ export class ColorBrightnessCache {
     }
 }
 
+const COLOR_BYTE_MAX = 255;
+const BRIGHTNESS_CHANNEL_FACTOR = 0.4;
+const BRIGHTNESS_ALPHA_FACTOR = 0.3;
+
 export class ColorUtils {
     private static readonly HEX_COLOR_REGEX =
         /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
@@ -256,7 +260,7 @@ export class ColorUtils {
                     r: parseInt(hex.slice(0, 2), 16),
                     g: parseInt(hex.slice(2, 4), 16),
                     b: parseInt(hex.slice(4, 6), 16),
-                    a: hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255.0 : 1,
+                    a: hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / COLOR_BYTE_MAX : 1,
                 };
             }
         }
@@ -276,16 +280,31 @@ export class ColorUtils {
         let { r, g, b, a } = parsed;
 
         if (isLightTheme) {
-            r = Math.round(Math.max(0, r - r * factor * 0.4));
-            g = Math.round(Math.max(0, g - g * factor * 0.4));
-            b = Math.round(Math.max(0, b - b * factor * 0.4));
+            r = Math.round(Math.max(0, r - r * factor * BRIGHTNESS_CHANNEL_FACTOR));
+            g = Math.round(Math.max(0, g - g * factor * BRIGHTNESS_CHANNEL_FACTOR));
+            b = Math.round(Math.max(0, b - b * factor * BRIGHTNESS_CHANNEL_FACTOR));
         } else {
-            r = Math.round(Math.min(255, r + (255 - r) * factor * 0.4));
-            g = Math.round(Math.min(255, g + (255 - g) * factor * 0.4));
-            b = Math.round(Math.min(255, b + (255 - b) * factor * 0.4));
+            r = Math.round(
+                Math.min(
+                    COLOR_BYTE_MAX,
+                    r + (COLOR_BYTE_MAX - r) * factor * BRIGHTNESS_CHANNEL_FACTOR,
+                ),
+            );
+            g = Math.round(
+                Math.min(
+                    COLOR_BYTE_MAX,
+                    g + (COLOR_BYTE_MAX - g) * factor * BRIGHTNESS_CHANNEL_FACTOR,
+                ),
+            );
+            b = Math.round(
+                Math.min(
+                    COLOR_BYTE_MAX,
+                    b + (COLOR_BYTE_MAX - b) * factor * BRIGHTNESS_CHANNEL_FACTOR,
+                ),
+            );
         }
 
-        a = Math.min(1, a + factor * 0.3);
+        a = Math.min(1, a + factor * BRIGHTNESS_ALPHA_FACTOR);
 
         return `rgba(${r}, ${g}, ${b}, ${a})`;
     }

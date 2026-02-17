@@ -1,9 +1,10 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import type { LineAnalysis } from './IndentationEngine';
 
 const YIELD_EVERY_LINES = 200;
 const YIELD_TIMEOUT_MS = 5;
 const VISIBLE_LINE_BUFFER = 50;
+const FALLBACK_LINE_COUNT = 100;
 
 export interface DecorationResult {
     spectra: vscode.Range[][];
@@ -38,7 +39,7 @@ export class DecorationGenerator {
 
         // Calculate lines to process
         if (visibleRanges.length === 0 || (visibleRanges[0]?.isEmpty ?? true)) {
-            const end = Math.min(lineCount - 1, 100);
+            const end = Math.min(lineCount - 1, FALLBACK_LINE_COUNT);
             for (let i = 0; i <= end; i++) linesToProcess.add(i);
         } else {
             for (const range of visibleRanges) {

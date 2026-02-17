@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 import { PALETTES, type PaletteKey } from './colors';
 import { ColorUtils } from './ColorUtils';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
@@ -22,6 +22,10 @@ export interface IndentSpectraConfig {
     lightIndicatorWidth: number;
     activeIndentBrightness: number;
 }
+
+const UPDATE_DELAY_MIN_MS = 10;
+const UPDATE_DELAY_DEFAULT_MS = 100;
+const BRIGHTNESS_MAX = 9;
 
 export class ConfigurationManager {
     private config!: IndentSpectraConfig;
@@ -47,7 +51,10 @@ export class ConfigurationManager {
             rawIndicatorStyle === 'light' ? IndicatorStyle.Light : IndicatorStyle.Classic;
 
         this.config = {
-            updateDelay: Math.max(10, config.get<number>('updateDelay', 100)),
+            updateDelay: Math.max(
+                UPDATE_DELAY_MIN_MS,
+                config.get<number>('updateDelay', UPDATE_DELAY_DEFAULT_MS),
+            ),
             colorPreset: rawPreset,
             colors: sanitizedColors,
             errorColor: this.sanitizeColor(config.get<string>('errorColor', '')),
@@ -60,7 +67,7 @@ export class ConfigurationManager {
             lightIndicatorWidth: Math.max(1, config.get<number>('lightIndicatorWidth', 1)),
             activeIndentBrightness: Math.max(
                 0,
-                Math.min(9, config.get<number>('activeIndentBrightness', 2)),
+                Math.min(BRIGHTNESS_MAX, config.get<number>('activeIndentBrightness', 2)),
             ),
         };
 

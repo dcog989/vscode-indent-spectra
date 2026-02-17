@@ -3,6 +3,7 @@ import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
 
 const YIELD_TIMEOUT_MS = 5;
 const MASSIVE_FILE_THRESHOLD = 50000;
+const YIELD_EVERY_MATCHES = 50;
 
 export class IgnoredLineDetector {
     public static async identifyIgnoredLines(
@@ -60,7 +61,7 @@ export class IgnoredLineDetector {
 
             while ((match = regex.exec(text)) !== null) {
                 if (
-                    ++matchCount % 50 === 0 &&
+                    ++matchCount % YIELD_EVERY_MATCHES === 0 &&
                     performance.now() - lastYieldTime > YIELD_TIMEOUT_MS
                 ) {
                     await new Promise((resolve) => setTimeout(resolve, 0));
