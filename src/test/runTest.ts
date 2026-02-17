@@ -1,4 +1,4 @@
-import { runTests } from '@vscode/test-electron';
+﻿import { runTests } from '@vscode/test-electron';
 import * as path from 'path';
 
 async function main() {
@@ -12,6 +12,7 @@ async function main() {
             // Match the "engines > vscode" version in your package.json
             version: '1.109.4',
             launchArgs: [
+                extensionDevelopmentPath, // open project root as workspace so ConfigurationTarget.Workspace is available
                 '--disable-workspace-trust',
                 '--disable-gpu',
                 '--skip-welcome',
