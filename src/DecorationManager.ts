@@ -1,8 +1,8 @@
-import type * as vscode from 'vscode';
+﻿import type * as vscode from 'vscode';
 import { ColorUtils } from './ColorUtils';
-import { DecorationFactory } from './DecorationFactory';
 import type { IndentSpectraConfig } from './ConfigurationManager';
 import { ConfigUtils } from './ConfigUtils';
+import { DecorationFactory } from './DecorationFactory';
 
 interface DecorationState {
     spectraHashes: number[];
@@ -148,14 +148,7 @@ export class DecorationSuite implements vscode.Disposable {
         const cached = this.rangeHashCache.get(cacheKey);
         if (cached !== undefined) return cached;
 
-        let hash = ranges.length * 31;
-        for (const range of ranges) {
-            hash = (hash << 5) - hash + range.start.line;
-            hash = (hash << 5) - hash + range.start.character;
-            hash = (hash << 5) - hash + range.end.line;
-            hash = (hash << 5) - hash + range.end.character;
-        }
-        const result = hash >>> 0;
+        const result = ConfigUtils.hashRanges(ranges);
 
         this.rangeHashCache.set(cacheKey, result);
         return result;
