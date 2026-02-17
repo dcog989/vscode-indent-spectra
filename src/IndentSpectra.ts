@@ -23,11 +23,6 @@ export class IndentSpectra implements vscode.Disposable {
     private lastAppliedState = new LRUCache<string, string>(MAX_CACHED_DOCUMENTS);
     private dirtyDocuments = new Set<string>();
     private cancellationSource?: vscode.CancellationTokenSource;
-    private eventSequence = 0;
-    private pendingEvents = new Map<
-        string,
-        { sequence: number; event: vscode.TextDocumentChangeEvent }
-    >();
 
     public checkAndUpdateDirtyDocument(uri: vscode.Uri): void {
         const uriString = uri.toString();
@@ -145,7 +140,7 @@ export class IndentSpectra implements vscode.Disposable {
         }
 
         if (event) {
-            this.applyIncrementalChangeToCache(event, ++this.eventSequence);
+            this.applyIncrementalChangeToCache(event);
         }
 
         const run = async (): Promise<void> => {
@@ -160,22 +155,11 @@ export class IndentSpectra implements vscode.Disposable {
         }
     }
 
-    private applyIncrementalChangeToCache(
-        event: vscode.TextDocumentChangeEvent,
-        sequence: number,
-    ): void {
+    private applyIncrementalChangeToCache(event: vscode.TextDocumentChangeEvent): void {
         const uri = event.document.uri.toString();
-
-        // Store event with sequence number to ensure proper ordering
-        this.pendingEvents.set(uri, { sequence, event });
-
-        // Process events in order, skipping outdated ones
-        const pending = this.pendingEvents.get(uri);
-        if (!pending?.sequence || pending.sequence !== sequence) return;
 
         this.ignoredLinesCache.delete(uri);
         this.lastAppliedState.delete(uri);
-        this.pendingEvents.delete(uri);
 
         const cache = this.lineCache.get(uri);
         if (!cache) return;
