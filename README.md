@@ -66,7 +66,7 @@ Customize _Indent Spectra_ in your `settings.json` or via the Settings UI:
 
 ## Requirements
 
-VS Code 1.107+.
+VS Code ^1.109.x.
 
 ## Acknowledgements
 

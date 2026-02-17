@@ -5,7 +5,7 @@ Indent Spectra is an extension for VS Code that colorises line indentation to ai
 ## Tech Stack
 
 - **TypeScript 5.9** with strict mode enabled
-- **VS Code Extension API** (^1.106.1)
+- **VS Code Extension API** (^1.109.0)
 - **Node.js** runtime (ES2024 target)
 - **esbuild** for bundling (production builds)
 - **Bun** for package management and scripts
@@ -95,13 +95,11 @@ Extension responds to:
 
 ### Allowed
 
-- `.claude/`, `.github/`, `.vscode/`
-- `scripts/`, `src/`
-- Root files: `README.md`, `.editorconfig`, `.gitignore`, `eslint.config.mjs`, `package.json`, `tsconfig.json`, etc.
+- All root folders and files unless excluded, below.
 
 ### Disallowed
 
-- `.ai/`, `.assets/`, `.docs/`, `.git/`, `node_modules/`
+- `.assets/`, `.context/`, `.docs/`, `.git/`, `node_modules/`
 - `repomix.config.json`, `bun.lock`, `AGENTS.md`, `.repomixignore`
 
 ## Common Patterns
@@ -134,11 +132,11 @@ this.lastAppliedState.delete(uriString);
 
 ```typescript
 interface LineAnalysis {
-    blocks: number[];        // Character positions of indent boundaries
-    visualWidth: number;     // Visual width considering tab expansion
-    isMixed: boolean;        // Mixed tabs and spaces
-    isError: boolean;        // Incorrect indentation
-    isIgnored: boolean;      // Matches ignore pattern
+    blocks: number[]; // Character positions of indent boundaries
+    visualWidth: number; // Visual width considering tab expansion
+    isMixed: boolean; // Mixed tabs and spaces
+    isError: boolean; // Incorrect indentation
+    isIgnored: boolean; // Matches ignore pattern
 }
 ```
 

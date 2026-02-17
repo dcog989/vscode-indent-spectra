@@ -9,8 +9,8 @@ async function main() {
         await runTests({
             extensionDevelopmentPath,
             extensionTestsPath,
-            // Match the version in your package.json
-            version: '1.108.1',
+            // Match the "engines > vscode" version in your package.json
+            version: '1.109.4',
             launchArgs: [
                 '--disable-workspace-trust',
                 '--disable-gpu',
