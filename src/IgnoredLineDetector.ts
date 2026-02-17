@@ -1,4 +1,4 @@
-import type * as vscode from 'vscode';
+﻿import type * as vscode from 'vscode';
 import { PatternCompiler, type CompiledPattern } from './PatternCompiler';
 
 const YIELD_TIMEOUT_MS = 5;
@@ -20,9 +20,14 @@ export class IgnoredLineDetector {
         }
 
         const text = doc.getText();
-        const lineStarts: number[] = [];
-        for (let i = 0; i < doc.lineCount; i++) {
-            lineStarts.push(doc.offsetAt(doc.lineAt(i).range.start));
+
+        // Build lineStarts directly from the raw text instead of making
+        // doc.offsetAt() API calls for every line (O(n) -> O(n) but no API overhead).
+        const lineStarts: number[] = [0];
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\n') {
+                lineStarts.push(i + 1);
+            }
         }
 
         const getLineIndex = (offset: number): number => {
