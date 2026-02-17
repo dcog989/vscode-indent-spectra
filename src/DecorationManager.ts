@@ -50,6 +50,12 @@ export class DecorationManager implements vscode.Disposable {
         return this.currentSuite;
     }
 
+    public clearStateFromAllSuites(uri: vscode.Uri): void {
+        for (const suite of this.decorationSuites.values()) {
+            suite.clearState(uri);
+        }
+    }
+
     public disposeSuitesForConfig(config: IndentSpectraConfig): void {
         const configKey = this.computeConfigKey(config);
         const keysToDispose: string[] = [];

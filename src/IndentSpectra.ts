@@ -105,7 +105,8 @@ export class IndentSpectra implements vscode.Disposable {
         this.ignoredLinesCache.delete(uriString);
         this.lastTabSize.delete(uriString);
         this.lastAppliedState.delete(uriString);
-        this.decorationManager.getCurrentSuite()?.clearState(uri);
+        this.dirtyDocuments.delete(uriString);
+        this.decorationManager.clearStateFromAllSuites(uri);
     }
 
     public clearAppliedState(uri: vscode.Uri): void {
